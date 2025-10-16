@@ -19,13 +19,7 @@ app.use(cors());
 // Mount routes
 routeAPI(app);
 
-// Test route (ping)
-app.get("/", (req, res) => {
-  res.send("✅ API is running...");
-});
-app.post("/users", (res,req) =>{
-  console.log("abc")
-})
+
 
 // Global 404 handler
 app.use((req, res) => {

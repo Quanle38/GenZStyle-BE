@@ -46,18 +46,24 @@ export interface CartItem {
 export interface Product {
   product_id: string;
   name: string;
-  base_price: number;
-  description: string;
+  brand: string;
+  price: number;
+  color: string;
+  size: string;
+  is_deleted: boolean;
+  thumbnail : string;
 }
 
 // Variants
 export interface Variant {
   variant_id: string;
-  product_id: string;
-  size: number;
+  product_id: string;   // FK -> Products
+  size: string;
   color: string;
   stock: number;
   price: number;
+  is_deleted: boolean;
+  image?: string;
 }
 
 // Coupons

@@ -1,5 +1,7 @@
 import pool from "../config/connection";
 import { Pagination } from "../types/pagination";
+import productTable from "../models/schema/product.schema";
+import variantTable from "../models/schema/variant.schema";
 
 const baseModel = {
   findAll: async (
@@ -123,7 +125,35 @@ const baseModel = {
       throw new Error(" Create failed: " + error.message);
 
     }
-  }
+  },
+  search: async (tableName: string,
+    searchObject: Record<string, any>,
+    joins? : {table : string; on : string}[],
+    extraWhere? : string
+  ) => {
+    try {
+       console.log("searchObject",searchObject);
+       const fields = Object.keys(searchObject);
+       console.log("fields",fields);
+      if (fields.length === 0) {
+        throw new Error("No fields provided")
+      }
+      const values = Object.values(searchObject)
+      const joinClause = joins ? joins.map((j) => `JOIN "${j.table}" as ${j.table.charAt(0).toLowerCase()} ON ${tableName.charAt(0).toLowerCase()}."${j.on}" = ${j.table.charAt(0).toLowerCase()}."${j.on}"`).join(" ") :"";
+      //const whereClause = fields.map( (key,index) => `"${key.replace(/\./g, '"."')}" = $${index + 1} `) 
+      //.join("AND ");
+     // const fullWhere = extraWhere ? `${whereClause}AND (${extraWhere})` : whereClause;
+      const whereClause = extraWhere ? `WHERE ${extraWhere}` : ""
+      let query = `SELECT * FROM "${tableName}" as ${tableName.charAt(0).toLowerCase()} ${joinClause} ${whereClause}`
+      console.log("query", query);
+      const result = await pool.query(query, values);
+      return result.rows;
+    } catch (error : any) {
+      console.error("Search error :", error);
+      throw new Error(" Error" + error.message )
+    }
+ },
 };
-
 export default baseModel;
+
+   
