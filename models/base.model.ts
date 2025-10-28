@@ -52,18 +52,56 @@ const baseModel = {
       }
 
       // query cơ bản (⚠️ nên dùng param thay vì chèn trực tiếp để tránh SQL Injection)
-      const query = `SELECT ${cols} FROM "${tableName}" WHERE ${fieldIdName} = $1 AND  is_deleted = false`;
+      const query = `SELECT ${cols} FROM "${tableName}" WHERE ${fieldIdName} = '${id}' AND  is_deleted = false`;
       console.log("🟡 Final Query :", query);
 
-      const result = await pool.query(query, [id]);
+      const result = await pool.query(query);
       console.log("✅ Query Result:", result.rows);
 
-      return result.rows;
+      return result.rows[0];
     } catch (error: any) {
       console.error("❌ findOne Error:", error);
       throw new Error("findOne failed: " + error.message);
     }
   },
+   findOneWithCondition: async (
+  tableName: string,
+  conditions: Record<string, any>,
+  columns: string[] = ["*"]
+) => {
+  try {
+    const cols = columns.length > 0 ? columns.join(", ") : "*";
+    const conditionKeys = Object.keys(conditions);
+
+    if (conditionKeys.length === 0) {
+      throw new Error("❌ No conditions provided");
+    }
+
+    // Tạo WHERE clause & params an toàn
+    const whereClause = conditionKeys
+      .map((key, index) => `"${key}" = $${index + 1}`)
+      .join(" AND ") 
+      + ` AND is_deleted = false`;
+
+    const values = Object.values(conditions);
+
+    const query = `
+      SELECT ${cols}
+      FROM "${tableName}"
+      WHERE ${whereClause}
+      LIMIT 1;
+    `;
+
+    console.log("🟡 Final Query:", query, values);
+    const result = await pool.query(query, values);
+    console.log("✅ Query Result:", result.rows);
+    return result.rows[0];
+  } catch (error: any) {
+    console.error("❌ findOneWithCondition Error:", error);
+    throw new Error("findOneWithCondition failed: " + error.message);
+  }
+},
+
   update: async (
     tableName: string,
     arrayFieldKeys: string[],
@@ -111,13 +149,9 @@ const baseModel = {
       const keys = Object.keys(data); // ['user_id','first_name','last_name','email','is_deleted']
       const values = Object.values(data); // ['U003','David','Nguyen','david@example.com',false]
       const placeholders = keys.map((_, i) => `$${i + 1}`).join(", "); // $1,$2,$3,$4,$5
-
-      const query = `
-    INSERT INTO "${tableName}" (${keys.join(", ")})
-    VALUES (${placeholders})
-    RETURNING *;
-  `;
-
+     
+      const query = `INSERT INTO "${tableName}" (${keys.join(", ")}) VALUES (${placeholders}) RETURNING *;`;
+      console.log("create query",query)
       const result = await pool.query(query, values);
       return result.rows[0];
     } catch (error: any) {

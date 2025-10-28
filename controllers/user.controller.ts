@@ -5,6 +5,8 @@ import userTable from "../models/schema/user.schema";
 import parseId from "../helpers/checkId";
 import { User } from "../types/tableType";
 import { ROLE } from "../enums/role.enum";
+import { RequestCreateUser } from "../dtos/user.dto";
+import addressTable from "../models/schema/userAddress.schema";
 
 const userController = {
   getAll: async (req: Request, res: Response) => {
@@ -22,6 +24,7 @@ const userController = {
         success: true,
         data: users,
       });
+      console.log("aaaa");
     } catch (error: any) {
       return handleError(res, 500, error);
     }
@@ -36,12 +39,12 @@ const userController = {
 
       const existingUser = await baseModel.findOne(
         userTable.name,
-        userTable.columns.user_id,
+        userTable.columns.id,
         id,
         ["*"]
       );
 
-      if (!existingUser || existingUser.length === 0) {
+      if (!existingUser) {
         return handleError(res, 404, "User not found");
       }
 
@@ -60,10 +63,10 @@ const userController = {
       if (!idParam) return handleError(res, 404, "User not found");
 
       const id = parseId(idParam);
-
+      console.log("acscscscscscscsc", id)
       const existingUser = await baseModel.findOne(
         userTable.name,
-        userTable.columns.user_id,
+        userTable.columns.id,
         id,
         ["*"]
       );
@@ -84,7 +87,7 @@ const userController = {
         userTable.name,
         arrayFieldKeys,
         arrayFieldValues,
-        userTable.columns.user_id,
+        userTable.columns.id,
         id
       );
 
@@ -103,11 +106,10 @@ const userController = {
       if (!idParam) return handleError(res, 404, "User not found");
 
       const id = parseId(idParam);
-
       // ⚠️ Kiểm tra quyền (ở đây bạn đang check sai — vì bạn check trên `userTable.columns.role` chứ không phải user thực tế)
       const user = await baseModel.findOne(
         userTable.name,
-        userTable.columns.user_id,
+        userTable.columns.id,
         id,
         ["*"]
       );
@@ -123,7 +125,7 @@ const userController = {
 
       await baseModel.deletedOne(
         userTable.name,
-        userTable.columns.user_id,
+        userTable.columns.id,
         id
       );
 
@@ -135,25 +137,35 @@ const userController = {
 
   create: async (req: Request, res: Response) => {
     try {
-      const user: Partial<User> = req.body;
-
-      if (!user.user_id || !user.first_name || !user.email || !user.password) {
+      let user: RequestCreateUser = req.body;
+      if (!user.first_name || !user.email || !user.password || !user.address || !user.dob || !user.phone_number || !user.gender) {
         return handleError(res, 400, "Missing required fields");
       }
-
-      const newUserData = {
-        ...user,
+      const newAdressData = {
+        full_address: user.address,
+        is_default: false,
+        label: "",
+        is_deleted: false,
+      };
+      const createdAdress = await baseModel.create(addressTable.name, newAdressData)
+      const idAddress = createdAdress.address_id;
+      const {dob,address,...userNew} = user;
+      const newUserData : Partial<User> = {
+        ...userNew,
+        role : "USER",
+        dob : new Date(dob),
+        address_id : idAddress,
         is_deleted: false,
         created_at: new Date(),
         updated_at: new Date(),
+        
       };
-
       const createdUser = await baseModel.create(userTable.name, newUserData);
-
+     
       return res.status(201).json({
         success: true,
         message: "User created successfully",
-        data: createdUser,
+        data: createdUser, 
       });
     } catch (error: any) {
       return handleError(res, 500, error);

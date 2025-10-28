@@ -2,20 +2,22 @@ import { ConditionType, CouponType, OrderStatus, PaymentMethod, PaymentStatus, R
 
 // Users
 export interface User {
-  user_id: string;
-  address_id: number;
-  refresh_token: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  dob: Date; // PostgreSQL date → JS Date
-  phone_number: string;
-  gender: string;
-  password: string;
-  created_at: Date;
-  updated_at: Date;
-  is_new: boolean;
-  role: Role;
+  id: string;        // "id": "U001"
+  address_id: number;     // "address_id": 1
+  refresh_token: string | null; // "refresh_token": "rt1" | có thể null
+  first_name: string;     // "first_name": "VHU"
+  last_name: string;      // "last_name": "An"
+  email: string;          // "email": "an@example.com"
+  dob: Date;              // "dob": ISO date string → parse thành Date trong JS
+  phone_number: string;   // "phone_number": "0901234567"
+  gender: string;         // "gender": "Male"
+  password: string;       // "password": "hashedpass1"
+  created_at: Date;       // "created_at": timestamp
+  updated_at: Date;       // "updated_at": timestamp
+  is_new: boolean;        // "is_new": true
+  role: Role;             // "role": "USER"
+  is_deleted: boolean;    // "is_deleted": false
+  avatar: string | null;  // PostgreSQL "avata" → sửa đúng chính tả "avatar"
 }
 
 // UserAddresses
@@ -24,6 +26,7 @@ export interface UserAddress {
   full_address: string;
   is_default: boolean;
   label: string;
+  is_deleted : boolean
 }
 
 // Carts

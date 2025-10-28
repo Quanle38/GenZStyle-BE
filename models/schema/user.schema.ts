@@ -13,7 +13,7 @@ const schema = {
         created_at: "created_at",
         updated_at: "updated_at",
         is_new: "is_new",
-        user_id: "user_id",
+        id: "id",
         role: "role",
         is_deleted : "is_deleted"
     }
