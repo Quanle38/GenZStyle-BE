@@ -27,7 +27,7 @@ export abstract class BaseRepository<T> implements IGenericRepository<T> {
         });
     }
 
-    async findAll(options?: Omit<FindOptions, 'transaction'>): Promise<T[]> {
+    async findAll(options?: Omit<FindOptions, 'transaction'>, transaction?: Transaction | null): Promise<T[]> {
         return this.model.findAll({
             ...options,
             ...this.getTransactionOption()

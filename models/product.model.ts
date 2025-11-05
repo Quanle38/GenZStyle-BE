@@ -18,18 +18,18 @@ export interface ProductAttributes {
     brand: string | null;
     created_at: Date;
     updated_at: Date;
-    
+    category : string;
     // Quan hệ
     variants?: ProductVariant[];
 }
 
-interface ProductCreationAttributes extends Optional<ProductAttributes, 
-    "id" | "description" | "is_deleted" | "thumbnail" | "brand" | "created_at" | "updated_at"> { }
+interface ProductCreationAttributes extends Optional<ProductAttributes,
+    "id" | "description" | "is_deleted" | "thumbnail" | "brand" | "created_at" | "updated_at" |"category"> { }
 
 export class Product
     extends Model<ProductAttributes, ProductCreationAttributes>
     implements ProductAttributes {
-    
+
     public id!: string;
     public name!: string;
     public base_price!: number;
@@ -39,6 +39,7 @@ export class Product
     public brand!: string | null;
     public created_at!: Date;
     public updated_at!: Date;
+    public category! : string;
 
     // Mixins cho ProductVariant
     public getVariants!: HasManyGetAssociationsMixin<ProductVariant>;
@@ -91,11 +92,17 @@ Product.init(
         created_at: {
             type: DataTypes.DATE,
             allowNull: false,
+            defaultValue: DataTypes.NOW, // Thêm mặc định
         },
         updated_at: {
             type: DataTypes.DATE,
             allowNull: false,
+            defaultValue: DataTypes.NOW, // Thêm mặc định
         },
+         category: {
+            type: DataTypes.STRING(255),
+            allowNull: true,
+        }
     },
     {
         sequelize,

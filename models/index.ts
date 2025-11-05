@@ -1,31 +1,41 @@
 import { sequelize } from "../config/connection";
+
 import { User } from "./user.model";
 import { UserAddress } from "./userAddress.model";
 import { Product } from "./product.model";
 import { ProductVariant } from "./productVariant.model";
-// Đặt sau khi cả hai model User và UserAddress đã được khởi tạo/import
 
-// Quan hệ 1-Nhiều: Một User có nhiều UserAddress
+// ====================== Associations ======================
+
+// User <-> UserAddress
 User.hasMany(UserAddress, {
-    foreignKey: 'user_id',
-    as: 'addresses',        // Alias để truy vấn: user.getAddresses()
-    onDelete: 'CASCADE',    // Tùy chọn: Xóa user sẽ xóa các address liên quan
+    as: "addresses",
+    foreignKey: "user_id",
+    onDelete: "CASCADE"
 });
 
-// Quan hệ Ngược lại: UserAddress thuộc về một User
 UserAddress.belongsTo(User, {
-    foreignKey: 'user_id',
-    as: 'user', // Alias để truy vấn: userAddress.getUser()
+    as: "user",
+    foreignKey: "user_id"
 });
-// Product <-> Variant associations
+
+// Product <-> ProductVariant
 Product.hasMany(ProductVariant, {
-    sourceKey: 'id',
-    foreignKey: 'product_id',
-    as: 'variants'
+    as: "variants",
+    foreignKey: "product_id"
 });
 
 ProductVariant.belongsTo(Product, {
-    foreignKey: 'product_id',
-    as: 'product'
+    as: "product",
+    foreignKey: "product_id"
 });
-export { Product, ProductVariant, sequelize, User, UserAddress };
+
+// ====================== Export Models ======================
+
+export {
+    sequelize,
+    User,
+    UserAddress,
+    Product,
+    ProductVariant
+};

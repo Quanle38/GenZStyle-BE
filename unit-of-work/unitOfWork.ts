@@ -2,6 +2,8 @@ import { Transaction } from "sequelize";
 import { sequelize } from "../config/connection";
 import { UserRepository } from "../repositories/user.repository";
 import { UserAddressRepository } from "../repositories/userAddress.repository";
+import { ProductRepository } from "../repositories/product.repository";
+import { ProductVariantRepository } from "../repositories/productVariant.repository";
 
 export class UnitOfWork {
     private transaction: Transaction | null = null;
@@ -9,10 +11,14 @@ export class UnitOfWork {
     // Khai báo tất cả repositories
     users: UserRepository;
     userAddresses: UserAddressRepository;
+    products: ProductRepository;
+    productVariants: ProductVariantRepository;
 
     constructor() {
         this.users = new UserRepository();
         this.userAddresses = new UserAddressRepository();
+        this.products = new ProductRepository();
+        this.productVariants = new ProductVariantRepository();
     }
 
     /**
@@ -24,6 +30,8 @@ export class UnitOfWork {
         // Set transaction cho tất cả repositories
         this.users.setTransaction(this.transaction);
         this.userAddresses.setTransaction(this.transaction);
+        this.products.setTransaction(this.transaction);
+        this.productVariants.setTransaction(this.transaction);
     }
 
     /**
