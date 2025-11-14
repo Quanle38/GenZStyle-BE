@@ -28,7 +28,7 @@ export interface UserAddressAttributes {
 /**
  * Thuộc tính tùy chọn khi tạo mới
  */
-interface UserAddressCreationAttributes extends Optional<UserAddressAttributes, "address_id" | "is_deleted" | "created_at" | "updated_at"> { } // Thêm created_at/updated_at vào Optional
+export interface UserAddressCreationAttributes extends Optional<UserAddressAttributes, "address_id" | "is_deleted" | "created_at" | "updated_at"> { } // Thêm created_at/updated_at vào Optional
 
 /**
  * The Sequelize UserAddress Model

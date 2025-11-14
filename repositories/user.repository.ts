@@ -2,13 +2,45 @@
 // File: src/repositories/user.repository.ts
 // =====================================
 
-import { User, UserAddress } from "../models";
+import { User, UserAddress, MembershipTier } from "../models"; // Cần đảm bảo các Model này được import chính xác
 import { BaseRepository } from "../repositories/baseRepository";
 import { ROLE } from "../enums/role.enum";
 import { FindOptions } from "sequelize";
 
+// Khai báo UserRepository, kế thừa từ BaseRepository
 export class UserRepository extends BaseRepository<User> {
     protected model = User;
+
+    /**
+     * Lấy Membership Tier của user theo ID
+     * @param userId ID của User
+     * @returns MembershipTier object hoặc null nếu không tìm thấy user hoặc rank
+     */
+    async getTierByUserId(userId: string): Promise<MembershipTier | null> {
+        // Sử dụng findByPk để tìm User theo khóa chính
+        const user = await this.model.findByPk(userId, {
+            // INCLUDE quan hệ Rank (giả định association name là 'rank')
+            // Tên 'rank' phải khớp với tên 'as' trong User.belongsTo(MembershipTier, { as: 'rank' })
+            include: [{
+                model: MembershipTier, // Tên Model được liên kết
+                as: 'membership', // Tên Association trong User Model
+                required: false
+            }],
+            transaction: this.transaction
+        });
+
+        // Kiểm tra xem User có tồn tại và có Rank được đính kèm không
+        // Lỗi TypeScript đã được giải quyết bằng cách sửa User Model
+        if (!user || !user.membership_id || !user.membership) {
+            return null;
+        }
+        // Trả về đối tượng MembershipTier được đính kèm
+        return user.membership;
+    }
+
+    // =======================================================
+    // Các hàm gốc giữ nguyên
+    // =======================================================
 
     /**
      * Tìm user theo ID kèm theo addresses
@@ -73,8 +105,8 @@ export class UserRepository extends BaseRepository<User> {
      * Cập nhật refresh token
      */
     async updateRefreshToken(id: string, refreshToken: string | null): Promise<boolean> {
-        const [affectedCount] = await this.update(id, { 
-            refresh_token: refreshToken 
+        const [affectedCount] = await this.update(id, {
+            refresh_token: refreshToken
         });
         return affectedCount > 0;
     }
@@ -83,7 +115,7 @@ export class UserRepository extends BaseRepository<User> {
      * Cập nhật password
      */
     async updatePassword(id: string, hashedPassword: string): Promise<boolean> {
-        const [affectedCount] = await this.update(id, { 
+        const [affectedCount] = await this.update(id, {
             password: hashedPassword,
             updated_at: new Date()
         });
@@ -96,9 +128,9 @@ export class UserRepository extends BaseRepository<User> {
     async findByRole(role: ROLE, options?: Omit<FindOptions, 'transaction'>): Promise<User[]> {
         return this.findAll({
             ...options,
-            where: { 
-                role, 
-                is_deleted: false 
+            where: {
+                role,
+                is_deleted: false
             }
         });
     }
@@ -108,9 +140,9 @@ export class UserRepository extends BaseRepository<User> {
      */
     async countByRole(role: ROLE): Promise<number> {
         return this.count({
-            where: { 
-                role, 
-                is_deleted: false 
+            where: {
+                role,
+                is_deleted: false
             }
         });
     }
@@ -121,7 +153,7 @@ export class UserRepository extends BaseRepository<User> {
     async searchUsers(keyword: string, page: number = 1, limit: number = 10) {
         const offset = (page - 1) * limit;
         const { Op } = require('sequelize');
-        
+
         return this.findAndCountAll({
             where: {
                 is_deleted: false,
@@ -155,7 +187,7 @@ export class UserRepository extends BaseRepository<User> {
      * Khôi phục user đã bị xóa mềm
      */
     async restore(id: string): Promise<boolean> {
-        const [affectedCount] = await this.update(id, { 
+        const [affectedCount] = await this.update(id, {
             is_deleted: false,
             updated_at: new Date()
         });
@@ -171,9 +203,9 @@ export class UserRepository extends BaseRepository<User> {
 
     async findByRefreshToken(token: string): Promise<User | null> {
         return this.findOne({
-            where: {  refresh_token : token,is_deleted: false }
+            where: { refresh_token: token, is_deleted: false }
         });
     }
 
-    
+
 }

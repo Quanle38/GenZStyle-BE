@@ -14,7 +14,6 @@ export interface ProductAttributes {
     base_price: number;
     description: string | null;
     is_deleted: boolean;
-    thumbnail: string | null;
     brand: string | null;
     created_at: Date;
     updated_at: Date;
@@ -24,7 +23,7 @@ export interface ProductAttributes {
 }
 
 interface ProductCreationAttributes extends Optional<ProductAttributes,
-    "id" | "description" | "is_deleted" | "thumbnail" | "brand" | "created_at" | "updated_at" |"category"> { }
+    "id" | "description" | "is_deleted" |  "brand" | "created_at" | "updated_at" |"category"> { }
 
 export class Product
     extends Model<ProductAttributes, ProductCreationAttributes>
@@ -80,10 +79,6 @@ Product.init(
             type: DataTypes.BOOLEAN,
             allowNull: true,
             defaultValue: false,
-        },
-        thumbnail: {
-            type: DataTypes.TEXT,
-            allowNull: true,
         },
         brand: {
             type: DataTypes.STRING(255),

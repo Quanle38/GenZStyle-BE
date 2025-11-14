@@ -7,6 +7,7 @@ import {
     Association
 } from "sequelize";
 import { sequelize } from "../config/connection";
+import type { MembershipTier } from "./memberShipTier.model";
 // Dùng 'type' import để tránh lỗi Circular Dependency nếu userAddress.model.ts cũng import user.model.ts
 import type { UserAddress } from "./userAddress.model";
 
@@ -29,8 +30,10 @@ export interface UserAttributes {
     role: string;
     is_deleted: boolean;
     avatar: string | null;
+    membership_id: string; // ⬅️ ĐÃ ĐỔI TÊN
     // ➡️ Khai báo thuộc tính quan hệ cho TypeScript
     addresses?: UserAddress[];
+    membership?: MembershipTier;
 }
 
 /**
@@ -60,9 +63,11 @@ export class User
     public role!: string;
     public is_deleted!: boolean;
     public avatar!: string | null;
+    public membership_id!: string; // ⬅️ ĐÃ ĐỔI TÊN
+    public membership?: MembershipTier;
 
     // ➡️ Khai báo Mixins cho quan hệ HasMany (user.getAddresses(), user.createAddress(), ...)
-    public getAddresses!: HasManyGetAssociationsMixin<UserAddress>;
+   public getAddresses!: HasManyGetAssociationsMixin<UserAddress>;
     public addAddress!: HasManyAddAssociationMixin<UserAddress, number>;
     public addAddresses!: HasManyAddAssociationMixin<UserAddress, number>;
     public setAddresses!: HasManySetAssociationsMixin<UserAddress, number>;
@@ -70,10 +75,12 @@ export class User
     public removeAddresses!: HasManyRemoveAssociationMixin<UserAddress, number>;
     public countAddresses!: HasManyCountAssociationsMixin;
     public createAddress!: HasManyCreateAssociationMixin<UserAddress>;
+    
 
     // ➡️ Khai báo Static Association (cần thiết cho một số phiên bản Sequelize hoặc tiện ích)
     public static associations: {
         addresses: Association<User, UserAddress>;
+        membership: Association<User, MembershipTier>;
     };
 }
 
@@ -147,7 +154,14 @@ User.init(
             type: DataTypes.DATE,
             allowNull: false,
         },
+        membership_id: { // ⬅️ ĐÃ ĐỔI TÊN VÀ KHỞI TẠO CỘT
+            type: DataTypes.STRING(50), 
+            allowNull: false, 
+            defaultValue: 'BRONZE' // Mặc định là hạng cơ bản
+        },
+
     },
+    
     {
         sequelize,
         tableName: "Users",
