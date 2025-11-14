@@ -4,7 +4,7 @@ export interface RegisterRequestBody {
   email: string;
   password: string;
   phone_number: string;
-  birthday: Date;
+  birthday: string;
   gender: string;
   address: string;
 }

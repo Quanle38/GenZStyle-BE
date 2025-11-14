@@ -1,6 +1,5 @@
 import {
     DataTypes, Model, Optional,
-    // Import các Mixins cần thiết cho quan hệ hasMany
     HasManyGetAssociationsMixin, HasManyAddAssociationMixin,
     HasManySetAssociationsMixin, HasManyRemoveAssociationMixin,
     HasManyCountAssociationsMixin, HasManyCreateAssociationMixin,
@@ -8,12 +7,8 @@ import {
 } from "sequelize";
 import { sequelize } from "../config/connection";
 import type { MembershipTier } from "./memberShipTier.model";
-// Dùng 'type' import để tránh lỗi Circular Dependency nếu userAddress.model.ts cũng import user.model.ts
 import type { UserAddress } from "./userAddress.model";
 
-/**
- * Attributes for the User Model (matches database columns)
- */
 export interface UserAttributes {
     id: string;
     refresh_token: string | null;
@@ -30,24 +25,18 @@ export interface UserAttributes {
     role: string;
     is_deleted: boolean;
     avatar: string | null;
-    membership_id: string; // ⬅️ ĐÃ ĐỔI TÊN
-    // ➡️ Khai báo thuộc tính quan hệ cho TypeScript
+    membership_id: string; 
     addresses?: UserAddress[];
     membership?: MembershipTier;
 }
 
-/**
- * Attributes used for creating a new User instance.
- */
-interface UserCreationAttributes extends Optional<UserAttributes, "id" | "created_at" | "updated_at" | "refresh_token" | "avatar" | "is_new" | "is_deleted"> { }
+interface UserCreationAttributes extends Optional<UserAttributes, 
+    "id" | "created_at" | "updated_at" | "refresh_token" | "avatar" | "is_new" | "is_deleted"> { }
 
-/**
- * The Sequelize User Model
- */
 export class User
     extends Model<UserAttributes, UserCreationAttributes>
     implements UserAttributes {
-    // Public fields (Sequelize properties)
+    
     public id!: string;
     public refresh_token!: string | null;
     public first_name!: string;
@@ -63,11 +52,10 @@ export class User
     public role!: string;
     public is_deleted!: boolean;
     public avatar!: string | null;
-    public membership_id!: string; // ⬅️ ĐÃ ĐỔI TÊN
+    public membership_id!: string;
     public membership?: MembershipTier;
 
-    // ➡️ Khai báo Mixins cho quan hệ HasMany (user.getAddresses(), user.createAddress(), ...)
-   public getAddresses!: HasManyGetAssociationsMixin<UserAddress>;
+    public getAddresses!: HasManyGetAssociationsMixin<UserAddress>;
     public addAddress!: HasManyAddAssociationMixin<UserAddress, number>;
     public addAddresses!: HasManyAddAssociationMixin<UserAddress, number>;
     public setAddresses!: HasManySetAssociationsMixin<UserAddress, number>;
@@ -75,25 +63,20 @@ export class User
     public removeAddresses!: HasManyRemoveAssociationMixin<UserAddress, number>;
     public countAddresses!: HasManyCountAssociationsMixin;
     public createAddress!: HasManyCreateAssociationMixin<UserAddress>;
-    
 
-    // ➡️ Khai báo Static Association (cần thiết cho một số phiên bản Sequelize hoặc tiện ích)
     public static associations: {
         addresses: Association<User, UserAddress>;
         membership: Association<User, MembershipTier>;
     };
 }
 
-// --- Khởi tạo Model ---
 User.init(
     {
-        // Primary Key (assuming id is a UUID or custom string format "Uxxx")
         id: {
             type: DataTypes.STRING,
             primaryKey: true,
             allowNull: false,
-            // Thêm dòng này để Sequelize không validate khi create
-            defaultValue: DataTypes.UUIDV4, // Giá trị giả, DB trigger sẽ override
+            defaultValue: DataTypes.UUIDV4,
         },
         refresh_token: {
             type: DataTypes.STRING,
@@ -154,14 +137,14 @@ User.init(
             type: DataTypes.DATE,
             allowNull: false,
         },
-        membership_id: { // ⬅️ ĐÃ ĐỔI TÊN VÀ KHỞI TẠO CỘT
+        membership_id: { 
             type: DataTypes.STRING(50), 
-            allowNull: false, 
-            defaultValue: 'BRONZE' // Mặc định là hạng cơ bản
+            allowNull: true, 
+           // defaultValue: 'BRONZE'
+            // ❌ KHÔNG định nghĩa REFERENCES ở đây
+            // Foreign key sẽ được định nghĩa trong associations.ts
         },
-
     },
-    
     {
         sequelize,
         tableName: "Users",

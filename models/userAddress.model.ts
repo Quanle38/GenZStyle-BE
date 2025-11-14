@@ -71,7 +71,7 @@ UserAddress.init(
             allowNull: false,
         },
         full_address: {
-            type: DataTypes.STRING,
+            type: DataTypes.TEXT,
             allowNull: false,
         },
         is_default: {

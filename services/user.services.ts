@@ -60,6 +60,7 @@ export class UserService {
             role: ROLE.USER,
             dob: dob,
             is_deleted: false,
+            membership_id : "BRONZE"
         };
 
         const createdUser = await uow.users.create(newUser);

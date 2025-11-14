@@ -16,7 +16,7 @@ export class UserRepository extends BaseRepository<User> {
      * @param userId ID của User
      * @returns MembershipTier object hoặc null nếu không tìm thấy user hoặc rank
      */
-    async getTierByUserId(userId: string): Promise<MembershipTier | null> {
+    async getTierByUserId(userId: string): Promise<User | null> {
         // Sử dụng findByPk để tìm User theo khóa chính
         const user = await this.model.findByPk(userId, {
             // INCLUDE quan hệ Rank (giả định association name là 'rank')
@@ -35,7 +35,7 @@ export class UserRepository extends BaseRepository<User> {
             return null;
         }
         // Trả về đối tượng MembershipTier được đính kèm
-        return user.membership;
+        return user;
     }
 
     // =======================================================
@@ -205,6 +205,12 @@ export class UserRepository extends BaseRepository<User> {
         return this.findOne({
             where: { refresh_token: token, is_deleted: false }
         });
+    }
+    async isNewUser(user_id : string): Promise<boolean> {
+        const check = await this.findOne({
+            where: { id : user_id, is_new : true , is_deleted: false }
+        });
+        return !check ? false : true;
     }
 
 

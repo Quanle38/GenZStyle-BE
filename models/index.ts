@@ -1,13 +1,13 @@
 import { sequelize } from "../config/connection";
-
 import { User } from "./user.model";
 import { UserAddress } from "./userAddress.model";
 import { Product } from "./product.model";
 import { ProductVariant } from "./productVariant.model";
 import { Coupon } from "./coupon.model";
-import { CouponCondition } from "./couponCondition.model";
 import { MembershipTier } from "./memberShipTier.model"; 
 import { Favorite } from "./favorite.model"; 
+import { ConditionSet } from "./conditionSets.model"; 
+import { ConditionDetail } from "./conditionDetail.model"; 
 
 // ====================== Associations ======================
 
@@ -17,7 +17,6 @@ User.hasMany(UserAddress, {
     foreignKey: "user_id",
     onDelete: "CASCADE"
 });
-
 UserAddress.belongsTo(User, {
     as: "user",
     foreignKey: "user_id"
@@ -28,61 +27,80 @@ Product.hasMany(ProductVariant, {
     as: "variants",
     foreignKey: "product_id"
 });
-
 ProductVariant.belongsTo(Product, {
     as: "product",
     foreignKey: "product_id"
 });
 
-// --- 3. Coupon <-> CouponCondition ---
-Coupon.hasMany(CouponCondition, {
-    as: "conditions",
-    foreignKey: "coupon_id",
+// --- 3. Coupon <-> ConditionSet ---
+Coupon.belongsTo(ConditionSet, {
+    as: "conditionSet",
+    foreignKey: "condition_set_id",
+    onDelete: "RESTRICT"
+});
+ConditionSet.hasMany(Coupon, {
+    as: "coupons",
+    foreignKey: "condition_set_id"
+});
+
+// --- 4. ConditionSet <-> ConditionDetail ---
+ConditionSet.hasMany(ConditionDetail, {
+    as: "details",
+    foreignKey: "condition_set_id",
     onDelete: "CASCADE"
 });
-
-CouponCondition.belongsTo(Coupon, {
-    as: "coupon",
-    foreignKey: "coupon_id"
+ConditionDetail.belongsTo(ConditionSet, {
+    as: "conditionSet",
+    foreignKey: "condition_set_id"
 });
 
-// --- 4. MembershipTier <-> User (Rank) ---
+// --- 5. MembershipTier <-> User ---
+// ✅ ĐÂY LÀ NƠI ĐỊNH NGHĨA FOREIGN KEY
 MembershipTier.hasMany(User, {
     as: "users",
-    foreignKey: "membership_id" // ⬅️ ĐÃ CẬP NHẬT FOREIGN KEY
+    foreignKey: {
+        name: "membership_id",
+        allowNull: false
+    },
+    constraints: true, // Tạo foreign key constraint
+    onDelete: "RESTRICT", // Không cho xóa MembershipTier nếu còn User
+    onUpdate: "CASCADE"
 });
 
 User.belongsTo(MembershipTier, {
     as: "membership",
-    foreignKey: "membership_id" // ⬅️ ĐÃ CẬP NHẬT FOREIGN KEY
+    foreignKey: {
+        name: "membership_id",
+        allowNull: false
+    },
+    constraints: true,
+    onDelete: "RESTRICT",
+    onUpdate: "CASCADE"
 });
 
-// --- 5. User <-> Favorite ---
+// --- 6. User <-> Favorite ---
 User.hasMany(Favorite, {
     as: "favorites",
     foreignKey: "user_id",
     onDelete: "CASCADE"
 });
-
 Favorite.belongsTo(User, {
     as: "user",
     foreignKey: "user_id"
 });
 
-// --- 6. Product <-> Favorite ---
+// --- 7. Product <-> Favorite ---
 Product.hasMany(Favorite, {
     as: "favorites",
     foreignKey: "product_id",
     onDelete: "CASCADE"
 });
-
 Favorite.belongsTo(Product, {
     as: "product",
     foreignKey: "product_id"
 });
 
 // ====================== Export Models ======================
-
 export {
     sequelize,
     User,
@@ -90,7 +108,8 @@ export {
     Product,
     ProductVariant,
     Coupon,
-    CouponCondition,
     MembershipTier, 
-    Favorite
+    Favorite,
+    ConditionSet, 
+    ConditionDetail
 };

@@ -1,63 +1,68 @@
-// models/coupon.model.ts
-import {
-    DataTypes, Model, Optional,
-    HasManyGetAssociationsMixin, HasManyAddAssociationMixin,
-    HasManySetAssociationsMixin, HasManyRemoveAssociationMixin,
-    HasManyCountAssociationsMixin, HasManyCreateAssociationMixin,
-    Association
-} from "sequelize";
+// coupon.model.ts
+import { DataTypes, Model, Optional, Association } from "sequelize";
 import { sequelize } from "../config/connection";
-import type { CouponCondition } from "./couponCondition.model";
-
+// Import các type cần thiết cho quan hệ
+import type { ConditionSet } from "./conditionSets.model";
 
 /**
- * Attributes for the Coupon Model
+ * Attributes for the Coupon Model (matches database columns)
  */
 export interface CouponAttributes {
     id: string; // Primary Key
-    code: string;
-    start_time: Date;
-    end_time: Date;
-    type: string;
-    usage_limit: number;
-    used_count: number;
-    value: number; // Giá trị chiết khấu (VD: 10 cho 10% hoặc 10000 cho 10k VND)
-    max_discount: number | null; // Mức chiết khấu tối đa (chỉ áp dụng cho PERCENT)
+    code: string; // Mã code (Ví dụ: SALE20)
+    start_time: Date; // Thời gian bắt đầu hiệu lực (Tổng thể)
+    end_time: Date; // Thời gian kết thúc hiệu lực (Tổng thể)
+    type: 'PERCENT' | 'FIXED'; // Loại giảm giá
+    usage_limit: number; // Giới hạn tổng số lần sử dụng
+    used_count: number; // Số lần đã sử dụng
+    value: number; // Giá trị giảm giá (Ví dụ: 10.00 hoặc 50000.00)
+    max_discount: number | null; // Giảm giá tối đa (Chỉ dùng cho PERCENT)
+    
+    // Khóa ngoại mới trỏ đến bộ điều kiện
+    condition_set_id: string; 
+    
     is_deleted: boolean;
     created_at: Date;
     updated_at: Date;
 
-    // Quan hệ
-    conditions?: CouponCondition[];
+    // ➡️ Khai báo thuộc tính quan hệ cho TypeScript
+    conditionSet?: ConditionSet;
 }
 
-export interface CouponCreationAttributes extends Optional<CouponAttributes,
-    "used_count" | "is_deleted" | "max_discount" | "created_at" | "updated_at"> { }
+/**
+ * Attributes used for creating a new Coupon instance.
+ */
+export interface CouponCreationAttributes extends Optional<CouponAttributes, "used_count" | "is_deleted" | "created_at" | "updated_at" | "max_discount"> {}
 
+/**
+ * The Sequelize Coupon Model
+ */
 export class Coupon
     extends Model<CouponAttributes, CouponCreationAttributes>
     implements CouponAttributes {
-
+    
     public id!: string;
     public code!: string;
     public start_time!: Date;
     public end_time!: Date;
-    public type!: string;
+    public type!: 'PERCENT' | 'FIXED';
     public usage_limit!: number;
     public used_count!: number;
     public value!: number;
     public max_discount!: number | null;
+    
+    public condition_set_id!: string;
+    
     public is_deleted!: boolean;
     public created_at!: Date;
     public updated_at!: Date;
-    public conditions?: CouponCondition[];
-    // Mixins cho CouponConditions
-    public getConditions!: HasManyGetAssociationsMixin<CouponCondition>;
-    public addCondition!: HasManyAddAssociationMixin<CouponCondition, number>;
-    // ... các mixin khác tương tự như Product
 
+    // ➡️ Khai báo Public Field cho quan hệ BelongsTo
+    public conditionSet?: ConditionSet;
+
+    // ➡️ Khai báo Static Association
     public static associations: {
-        conditions: Association<Coupon, CouponCondition>;
+        conditionSet: Association<Coupon, ConditionSet>;
     };
 }
 
@@ -68,34 +73,33 @@ Coupon.init(
             type: DataTypes.STRING(255),
             primaryKey: true,
             allowNull: false,
-            defaultValue: DataTypes.UUIDV4,
         },
         code: {
             type: DataTypes.STRING(255),
-            allowNull: false,
             unique: true,
+            allowNull: false,
         },
         start_time: {
-            type: DataTypes.DATE, // timestamp without time zone -> DATE
+            type: DataTypes.DATE,
             allowNull: false,
         },
         end_time: {
-            type: DataTypes.DATE, // timestamp without time zone -> DATE
+            type: DataTypes.DATE,
             allowNull: false,
         },
         type: {
-            type: DataTypes.TEXT, // Giả định
+            type: DataTypes.TEXT,
             allowNull: false,
-            defaultValue: 'PERCENT',
         },
         usage_limit: {
             type: DataTypes.INTEGER,
+            defaultValue: 1,
             allowNull: false,
         },
         used_count: {
             type: DataTypes.INTEGER,
-            allowNull: false,
             defaultValue: 0,
+            allowNull: false,
         },
         value: {
             type: DataTypes.DECIMAL(10, 2),
@@ -105,18 +109,23 @@ Coupon.init(
             type: DataTypes.DECIMAL(10, 2),
             allowNull: true,
         },
+        // Định nghĩa Khóa ngoại
+        condition_set_id: { 
+            type: DataTypes.STRING(255),
+            allowNull: false,
+        },
         is_deleted: {
             type: DataTypes.BOOLEAN,
-            allowNull: false,
             defaultValue: false,
+            allowNull: false,
         },
         created_at: {
             type: DataTypes.DATE,
-            allowNull: true,
+            allowNull: false,
         },
         updated_at: {
             type: DataTypes.DATE,
-            allowNull: true,
+            allowNull: false,
         },
     },
     {

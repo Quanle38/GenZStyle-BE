@@ -74,13 +74,14 @@ export class AuthService {
                 password: hashedPassword,
                 first_name: body.first_name,
                 last_name: body.last_name,
-                dob: body.birthday,
+                dob: new Date(body.birthday),
                 gender: body.gender,
                 phone_number: body.phone_number,
                 role: "USER",
                 is_deleted: false,
+                membership_id : "BRONZE"
             });
-
+            console.warn("truoc khi create ");
             await uow.userAddresses.create({
                 user_id: newUser.id,
                 full_address: body.address,
@@ -88,6 +89,7 @@ export class AuthService {
                 label: "Home",
                 is_deleted: false,
             });
+            console.warn("sau khi create")
 
             const accessToken = generateToken(newUser);
             const refreshToken = generateRefreshToken(newUser);
