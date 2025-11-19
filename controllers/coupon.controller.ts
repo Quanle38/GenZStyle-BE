@@ -3,7 +3,6 @@ import { Request, Response } from "express";
 import handleError from "../helpers/handleError.helper";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { CouponService } from "../services/coupon.service";
-import { authService } from "../services/auth.service"; // Giả định service này trả về User có membership
 
 const couponService = new CouponService();
 
@@ -13,7 +12,7 @@ const couponController = {
      * [GET] Lấy danh sách Coupon có phân trang (Admin/Management)
      */
     getAllCoupons: async (req: Request, res: Response) => {
-        const uow = new UnitOfWork(); // Không cần transaction
+        const uow = new UnitOfWork();
         try {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 10;
@@ -36,28 +35,24 @@ const couponController = {
     },
 
     /**
-     * [GET] Lấy danh sách Coupon khả dụng cho User (User View)
+     * ✅ [GET] Lấy danh sách Coupon khả dụng cho User (dùng req.user)
      */
     getAllCouponByUserId: async (req: Request, res: Response) => {
-        const uow = new UnitOfWork(); // Không cần transaction
+        const uow = new UnitOfWork();
         try {
-            // **GIẢ ĐỊNH**: userId được lấy từ req.query
-            const userId = req.query.userId as string; 
-            
-            if (!userId) {
-                return handleError(res, 401, "User ID is required.");
-            }
-            
-            // Lấy thông tin User để xác định Membership Tier
-            const user = await uow.users.getTierByUserId(userId); // Giả định repo có hàm này
+            // ✅ Lấy user từ req.user (đã được inject bởi authMiddleware)
+            const user = req.user;
             
             if (!user) {
-                 return handleError(res, 404, "User or Membership not found.");
+                return handleError(res, 401, "User not authenticated.");
             }
             
-            const userMembershipId = user.membership_id; // Lấy ID của Membership Tier
-            
-            const coupons = await couponService.getAllCouponByUserId(uow, userId, userMembershipId);
+            // ✅ Dùng thông tin từ req.user
+            const coupons = await couponService.getAllCouponByUserId(
+                uow, 
+                user.id, 
+                user.membership_id
+            );
 
             return res.status(200).json({
                 success: true,
@@ -69,14 +64,17 @@ const couponController = {
     },
 
     /**
-     * [GET] Lấy Coupon theo mã code (Thường dùng cho API công khai/kiểm tra)
+     * [GET] Lấy Coupon theo mã code (Public API)
      */
     getCouponByCode: async (req: Request, res: Response) => {
-        const uow = new UnitOfWork(); // Không cần transaction
+        const uow = new UnitOfWork();
         try {
             const code = req.query.code as string;
             
-            // Sử dụng findActiveCouponByCode để lấy coupon và tất cả điều kiện kèm theo
+            if (!code) {
+                return handleError(res, 400, "Coupon code is required.");
+            }
+            
             const coupon = await uow.coupon.findActiveCouponByCode(code); 
 
             if (!coupon) {
@@ -97,15 +95,14 @@ const couponController = {
      */
     createCoupon: async (req: Request, res: Response) => {
         const uow = new UnitOfWork();
-        await uow.start(); // ➡️ BẮT ĐẦU TRANSACTION
+        await uow.start();
+        
         try {
-            // Giả định couponData chứa condition_set_id hoặc logic tạo set mới nằm trong service
             const { conditions = [], ...couponData } = req.body; 
             
-            // Hàm service xử lý/tạo ConditionSet
             const newCoupon = await couponService.createCoupon(uow, couponData, conditions); 
             
-            await uow.commit(); // ➡️ COMMIT TRANSACTION
+            await uow.commit();
 
             return res.status(201).json({
                 success: true,
@@ -113,34 +110,25 @@ const couponController = {
                 data: newCoupon,
             });
         } catch (error: any) {
-            await uow.rollback(); // ➡️ ROLLBACK
+            await uow.rollback();
             return handleError(res, 400, error.message);
         }
     },
 
     /**
-     * [POST] Kiểm tra, áp dụng và tăng lượt sử dụng Coupon (Transactional)
+     * ✅ [POST] Apply Coupon (dùng req.user)
      */
     applyCoupon: async (req: Request, res: Response) => {
         const uow = new UnitOfWork();
-        // **LƯU Ý:** Do logic của bạn tách riêng Validate/Calculate (Service) và Increment (Controller)
-        // Ta cần bọc toàn bộ trong một Transaction duy nhất để đảm bảo Atomicity.
-        await uow.start(); // ➡️ BẮT ĐẦU TRANSACTION bao gồm cả validation và increment
+        await uow.start();
 
         try {
-            // 1. Xác thực người dùng và lấy thông tin cần thiết
-            const token = req.headers["authorization"]?.split(" ")[1];
-            if (!token) {
-                 await uow.rollback();
-                 return handleError(res, 401, "Authorization token is missing.");
-            }
-            
-            // authService.me sử dụng UOW để truy vấn user (cần đảm bảo nó không tự commit/rollback)
-            const user = await authService.me(uow, token); 
+            // ✅ Lấy user từ req.user (đã được inject bởi authMiddleware)
+            const user = req.user;
             
             if (!user) {
-                 await uow.rollback();
-                 return handleError(res, 401, "User not found or token invalid.");
+                await uow.rollback();
+                return handleError(res, 401, "User not authenticated.");
             }
             
             const { code, cartInfo } = req.body;
@@ -150,7 +138,7 @@ const couponController = {
                 return handleError(res, 400, "Missing coupon code or cart information.");
             }
             
-            // Chuẩn bị CartValidationInfo đầy đủ 
+            // ✅ Chuẩn bị CartValidationInfo từ req.user
             const fullCartInfo = {
                 ...cartInfo,
                 userId: user.id,
@@ -158,30 +146,27 @@ const couponController = {
                 isNewUser: user.is_new, 
             };
             
-            // 2. Validate và tính chiết khấu (Service KHÔNG tăng count)
-            // Việc này chạy trong Transaction đã start
+            // Validate và tính chiết khấu
             const result = await couponService.applyCoupon(uow, code, fullCartInfo);
 
-            // 3. Tăng used_count trong CÙNG TRANSACTION (atomic with validation)
+            // Tăng used_count trong cùng transaction
             const incremented = await uow.coupon.incrementUsedCount(result.coupon.id);
             
             if (!incremented) {
-                // Nếu tăng count thất bại, ném lỗi để chuyển sang block catch và rollback
-                 throw new Error("Failed to update coupon usage count.");
+                throw new Error("Failed to update coupon usage count.");
             }
 
-            await uow.commit(); // ➡️ COMMIT TRANSACTION
+            await uow.commit();
 
             return res.status(200).json({
                 success: true,
-                message: "Coupon applied and usage counted successfully",
+                message: "Coupon applied successfully",
                 discount: result.discountAmount,
                 coupon: result.coupon.code
             });
             
         } catch (error: any) {
-            await uow.rollback(); // ➡️ ROLLBACK nếu có bất kỳ lỗi nào (validation, increment, auth, etc.)
-            // Lỗi từ applyCoupon (Validation) hoặc lỗi Increment
+            await uow.rollback();
             return handleError(res, 400, error.message);
         }
     }

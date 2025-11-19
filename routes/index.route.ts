@@ -6,6 +6,7 @@ import variantRouter from "./variant.route";
 import couponRouter from "./coupon.route";
 import favoriteRouter from "./favorite.route";
 import membershipRouter from "./membership.route";
+import cartRouter from "./cart.route";
 
 const routeAPI = (app: Express) => {
   app.use("/api/v1/user", userRouter)
@@ -15,7 +16,7 @@ const routeAPI = (app: Express) => {
   app.use("/api/v1/coupon", couponRouter)
   app.use("/api/v1/favorite", favoriteRouter)
   app.use("/api/v1/membership", membershipRouter)
-
+  app.use("/api/v1/cart", cartRouter)
   
 }
 

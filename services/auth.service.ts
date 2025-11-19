@@ -27,6 +27,25 @@ export class AuthService {
 
         return filteredUser;
     }
+     async getUserFromToken(uow: UnitOfWork, token: string): Promise<User> {
+        let userDecode;
+        try {
+            userDecode = verifyToken(token);
+        } catch {
+            throw { status: 401, message: "Invalid or expired token" };
+        }
+        
+        if (!userDecode) {
+            throw { status: 401, message: "You have to login first" };
+        }
+        
+        const user = await uow.users.findById(userDecode.user_id);
+        if (!user) {
+            throw { status: 404, message: "User not found" };
+        }
+        
+        return user;
+    }
 
     async login(uow: UnitOfWork, body: LoginRequestBody) {
         if (!body.email || !body.password) {
@@ -57,59 +76,76 @@ export class AuthService {
     }
 
     async register(uow: UnitOfWork, body: RegisterRequestBody) {
-        if (!body.email || !body.password || !body.first_name || !body.last_name || !body.address || !body.phone_number || !body.birthday) {
-            throw { status: 400, message: "Missing required fields" };
-        }
-
-        const existedUser = await uow.users.findByEmail(body.email);
-        if (existedUser) throw { status: 400, message: "Email already registered" };
-
-        await uow.start(); // ✅ start transaction
-
-        try {
-            const hashedPassword = await hashPassword(body.password);
-
-            const newUser = await uow.users.create({
-                email: body.email,
-                password: hashedPassword,
-                first_name: body.first_name,
-                last_name: body.last_name,
-                dob: new Date(body.birthday),
-                gender: body.gender,
-                phone_number: body.phone_number,
-                role: "USER",
-                is_deleted: false,
-                membership_id : "BRONZE"
-            });
-            console.warn("truoc khi create ");
-            await uow.userAddresses.create({
-                user_id: newUser.id,
-                full_address: body.address,
-                is_default: true,
-                label: "Home",
-                is_deleted: false,
-            });
-            console.warn("sau khi create")
-
-            const accessToken = generateToken(newUser);
-            const refreshToken = generateRefreshToken(newUser);
-
-            await uow.users.updateRefreshToken(newUser.id, refreshToken);
-
-            await uow.commit(); // ✅ commit mọi thứ
-
-            return {
-                access_token: accessToken,
-                refresh_token: refreshToken,
-                user: this.sanitizeUser(newUser)
-            };
-        } catch (error) {
-            await uow.rollback(); // ❗ rollback toàn bộ nếu có lỗi
-            throw error;
-        }
+    if (!body.email || !body.password || !body.first_name || !body.last_name || !body.address || !body.phone_number || !body.birthday || !body.gender) {
+        throw { status: 400, message: "Missing required fields" };
     }
 
+    const existedUser = await uow.users.findByEmail(body.email);
+    if (existedUser) throw { status: 400, message: "Email already registered" };
 
+    await uow.start();
+
+    try {
+        const gender = body.gender.toUpperCase();
+        const hashedPassword = await hashPassword(body.password);
+        
+        const userData = {
+            email: body.email,
+            password: hashedPassword,
+            first_name: body.first_name,
+            last_name: body.last_name,
+            dob: new Date(body.birthday),
+            gender: gender,
+            phone_number: body.phone_number,
+            role: "USER",
+            is_deleted: false,
+            membership_id: "BRONZE"
+        };
+        
+        console.log("Creating user with data:", userData);
+        
+        const newUser = await uow.users.create(userData);
+        
+        console.log("User created successfully:", newUser.id);
+        
+        const addressData = {
+            user_id: newUser.id,
+            full_address: body.address,
+            is_default: true,
+            label: "Home",
+            is_deleted: false,
+        };
+        
+        console.log("Creating address with data:", addressData);
+        
+        const address = await uow.userAddresses.create(addressData);
+        
+        console.log("Address created successfully:", address.address_id);
+
+        const accessToken = generateToken(newUser);
+        const refreshToken = generateRefreshToken(newUser);
+
+        await uow.users.updateRefreshToken(newUser.id, refreshToken);
+
+        await uow.commit();
+
+        return {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            user: this.sanitizeUser(newUser)
+        };
+    } catch (error) {
+        await uow.rollback();
+        // ✅ Log lỗi chi tiết
+        console.error("Registration error:", error);
+        
+        // ✅ Trả về message cụ thể hơn
+        if (error instanceof Error) {
+            throw { status: 400, message: error.message, details: error };
+        }
+        throw error;
+    }
+}
     async refreshToken(uow: UnitOfWork, token: string) {
         let payload;
         try {
@@ -139,18 +175,7 @@ export class AuthService {
     }
 
     async me(uow: UnitOfWork, token: string) {
-        let userDecode;
-        try {
-            userDecode = verifyToken(token);
-        } catch {
-            throw { status: 401, message: "Invalid or expired token" };
-        }
-        if (!userDecode) {
-            throw { status: 401, message: "You Have To LogIn First" };
-        }
-        const user = await uow.users.findById(userDecode.user_id);
-        if (!user) throw { status: 404, message: "User not found" };
-
+        const user = await this.getUserFromToken(uow, token);
         return this.sanitizeUser(user);
     }
 }

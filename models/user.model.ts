@@ -76,7 +76,8 @@ User.init(
             type: DataTypes.STRING,
             primaryKey: true,
             allowNull: false,
-            defaultValue: DataTypes.UUIDV4,
+            defaultValue: sequelize.literal("next_user_id()")
+            
         },
         refresh_token: {
             type: DataTypes.STRING,
@@ -126,7 +127,7 @@ User.init(
             defaultValue: false,
         },
         avatar: {
-            type: DataTypes.STRING,
+            type: DataTypes.TEXT,
             allowNull: true,
         },
         created_at: {
@@ -138,11 +139,8 @@ User.init(
             allowNull: false,
         },
         membership_id: { 
-            type: DataTypes.STRING(50), 
+            type: DataTypes.STRING, 
             allowNull: true, 
-           // defaultValue: 'BRONZE'
-            // ❌ KHÔNG định nghĩa REFERENCES ở đây
-            // Foreign key sẽ được định nghĩa trong associations.ts
         },
     },
     {
@@ -151,5 +149,6 @@ User.init(
         timestamps: true,
         createdAt: 'created_at',
         updatedAt: 'updated_at',
+        
     }
 );

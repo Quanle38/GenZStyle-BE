@@ -8,6 +8,9 @@ import { MembershipTier } from "./memberShipTier.model";
 import { Favorite } from "./favorite.model"; 
 import { ConditionSet } from "./conditionSets.model"; 
 import { ConditionDetail } from "./conditionDetail.model"; 
+// === NHẬP MODELS MỚI ===
+import { Cart } from "./cart.model"; 
+import { CartItem } from "./cartItem.model"; 
 
 // ====================== Associations ======================
 
@@ -55,15 +58,14 @@ ConditionDetail.belongsTo(ConditionSet, {
 });
 
 // --- 5. MembershipTier <-> User ---
-// ✅ ĐÂY LÀ NƠI ĐỊNH NGHĨA FOREIGN KEY
 MembershipTier.hasMany(User, {
     as: "users",
     foreignKey: {
         name: "membership_id",
         allowNull: false
     },
-    constraints: true, // Tạo foreign key constraint
-    onDelete: "RESTRICT", // Không cho xóa MembershipTier nếu còn User
+    constraints: true, 
+    onDelete: "RESTRICT", 
     onUpdate: "CASCADE"
 });
 
@@ -100,6 +102,42 @@ Favorite.belongsTo(Product, {
     foreignKey: "product_id"
 });
 
+// ====================== MỚI: CART ASSOCIATIONS ======================
+
+// --- 8. User <-> Cart (1:N) ---
+User.hasMany(Cart, {
+    as: "carts",
+    foreignKey: "user_id",
+    onDelete: "CASCADE"
+});
+Cart.belongsTo(User, {
+    as: "user",
+    foreignKey: "user_id"
+});
+
+// --- 9. Cart <-> CartItem (1:N) ---
+Cart.hasMany(CartItem, {
+    as: "items",
+    foreignKey: "cart_id",
+    onDelete: "CASCADE"
+});
+CartItem.belongsTo(Cart, {
+    as: "cart",
+    foreignKey: "cart_id"
+});
+
+// --- 10. ProductVariant <-> CartItem (1:N) ---
+ProductVariant.hasMany(CartItem, {
+    as: "cartItems",
+    foreignKey: "variant_id",
+    onDelete: "RESTRICT" // Không nên xóa variant nếu còn trong giỏ hàng
+});
+CartItem.belongsTo(ProductVariant, {
+    as: "variant",
+    foreignKey: "variant_id"
+});
+
+
 // ====================== Export Models ======================
 export {
     sequelize,
@@ -111,5 +149,8 @@ export {
     MembershipTier, 
     Favorite,
     ConditionSet, 
-    ConditionDetail
+    ConditionDetail,
+    // === EXPORT MODELS MỚI ===
+    Cart,
+    CartItem
 };

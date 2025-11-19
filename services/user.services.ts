@@ -3,6 +3,7 @@ import { CreateRequestBodyUser } from "../dtos/user/createRequestBody";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { User } from "../models";
 import { UpdateRequestBodyUser } from "../dtos/user/updateRequestBody";
+import { hashPassword } from "../helpers/password.helper";
 
 const ATTRIBUTES_TO_EXCLUDE = ['password', 'refresh_token', 'is_deleted'];
 
@@ -52,32 +53,76 @@ export class UserService {
         return "SUCCESS";
     }
 
-    async create(uow: UnitOfWork, payload: CreateRequestBodyUser) {
-        const { dob, address, ...userData } = payload;
+   async create(uow: UnitOfWork, payload: CreateRequestBodyUser) {
+        // ✅ Validate input
+        if (!payload.email || !payload.password || !payload.first_name || 
+            !payload.last_name || !payload.address || !payload.phone_number || 
+            !payload.dob || !payload.gender || !payload.membership_id) {
+            throw { status: 400, message: "Missing required fields" };
+        }
 
-        const newUser: Partial<User> = {
-            ...userData,
-            role: ROLE.USER,
-            dob: dob,
-            is_deleted: false,
-            membership_id : "BRONZE"
-        };
+        // ✅ Kiểm tra email đã tồn tại
+        const existingUser = await uow.users.findByEmail(payload.email);
+        if (existingUser) {
+            throw { status: 400, message: "Email already exists" };
+        }
 
-        const createdUser = await uow.users.create(newUser);
+        await uow.start(); // ✅ Bắt đầu transaction
 
-        await uow.userAddresses.create({
-            user_id: createdUser.id,
-            full_address: address,
-            is_default: true,
-            label: "Home",
-            is_deleted: false,
-        });
+        try {
+            // ✅ Destructure và chuẩn bị dữ liệu
+            const { dob, address, password, gender, ...userData } = payload;
 
-        const result = await uow.users.findByIdWithAddresses(
-            createdUser.id,
-            ATTRIBUTES_TO_EXCLUDE
-        );
+            // ✅ Hash password
+            const hashedPassword = await hashPassword(password);
 
-        return result;
+            // ✅ Chuẩn bị user data
+            const newUser: Partial<User> = {
+                ...userData,
+                password: hashedPassword,
+                role: ROLE.USER,
+                dob: new Date(dob), // ✅ Convert string to Date
+                gender: gender.toUpperCase(), // ✅ Chuẩn hóa gender
+                is_deleted: false,
+                membership_id: userData.membership_id
+            };
+
+            console.log("Creating user with data:", newUser);
+
+            // ✅ Tạo user
+            const createdUser = await uow.users.create(newUser);
+
+            console.log("User created with ID:", createdUser.id);
+
+            // ✅ Tạo address
+            await uow.userAddresses.create({
+                user_id: createdUser.id,
+                full_address: address,
+                is_default: true,
+                label: "Home",
+                is_deleted: false,
+            });
+
+            console.log("Address created successfully");
+
+            await uow.commit(); // ✅ Commit transaction
+
+            // ✅ Lấy user với addresses (exclude sensitive fields)
+            const result = await uow.users.findByIdWithAddresses(
+                createdUser.id,
+                ATTRIBUTES_TO_EXCLUDE
+            );
+
+            return result;
+
+        } catch (error) {
+            await uow.rollback(); // ✅ Rollback nếu có lỗi
+            console.error("Error creating user:", error);
+            
+            if (error instanceof Error) {
+                throw { status: 400, message: error.message, details: error };
+            }
+            throw error;
+        }
     }
 }
