@@ -15,6 +15,9 @@ import { CartItemRepository } from "../repositories/cartItem.repository";
 
 import { ConditionSetRepository } from "../repositories/conditionSet.repository"; 
 import { ConditionDetailRepository } from "../repositories/conditionDetail.repository"; 
+import { OrderRepository } from "../repositories/order.repository";
+import { OrderItemRepository } from "../repositories/orderItem.repositpry";
+import { PaymentRepository } from "../repositories/payment.repository";
 
 export class UnitOfWork {
     private transaction: Transaction | null = null;
@@ -34,7 +37,10 @@ export class UnitOfWork {
     // ➡️ KHAI BÁO CART VÀ CARTITEM
     cart: CartRepository;
     cartItem: CartItemRepository;
-
+    order : OrderRepository;
+    orderItem : OrderItemRepository;
+    payment : PaymentRepository;
+    
     constructor() {
         this.users = new UserRepository();
         this.userAddresses = new UserAddressRepository();
@@ -50,6 +56,9 @@ export class UnitOfWork {
         // ➡️ KHỞI TẠO CART VÀ CARTITEM
         this.cart = new CartRepository();
         this.cartItem = new CartItemRepository();
+        this.order = new OrderRepository();
+        this.orderItem = new OrderItemRepository();
+        this.payment = new PaymentRepository();
     }
 
     /**
@@ -73,6 +82,10 @@ export class UnitOfWork {
         // ➡️ SET TRANSACTION CHO CART VÀ CARTITEM
         this.cart.setTransaction(this.transaction);
         this.cartItem.setTransaction(this.transaction);
+        this.order.setTransaction(this.transaction);
+        this.orderItem.setTransaction(this.transaction);
+        this.payment.setTransaction(this.transaction);
+
     }
 
     /**

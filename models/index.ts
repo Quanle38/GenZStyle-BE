@@ -4,13 +4,15 @@ import { UserAddress } from "./userAddress.model";
 import { Product } from "./product.model";
 import { ProductVariant } from "./productVariant.model";
 import { Coupon } from "./coupon.model";
-import { MembershipTier } from "./memberShipTier.model"; 
-import { Favorite } from "./favorite.model"; 
-import { ConditionSet } from "./conditionSets.model"; 
-import { ConditionDetail } from "./conditionDetail.model"; 
-// === NHẬP MODELS MỚI ===
-import { Cart } from "./cart.model"; 
-import { CartItem } from "./cartItem.model"; 
+import { MembershipTier } from "./memberShipTier.model";
+import { Favorite } from "./favorite.model";
+import { ConditionSet } from "./conditionSets.model";
+import { ConditionDetail } from "./conditionDetail.model";
+import { Cart } from "./cart.model";
+import { CartItem } from "./cartItem.model";
+import { Order } from "./order.model";
+import { OrderItem } from "./orderItem.model";
+import { Payment } from "./payment.model";
 
 // ====================== Associations ======================
 
@@ -64,8 +66,8 @@ MembershipTier.hasMany(User, {
         name: "membership_id",
         allowNull: false
     },
-    constraints: true, 
-    onDelete: "RESTRICT", 
+    constraints: true,
+    onDelete: "RESTRICT",
     onUpdate: "CASCADE"
 });
 
@@ -102,7 +104,7 @@ Favorite.belongsTo(Product, {
     foreignKey: "product_id"
 });
 
-// ====================== MỚI: CART ASSOCIATIONS ======================
+// ====================== CART ASSOCIATIONS ======================
 
 // --- 8. User <-> Cart (1:N) ---
 User.hasMany(Cart, {
@@ -130,13 +132,73 @@ CartItem.belongsTo(Cart, {
 ProductVariant.hasMany(CartItem, {
     as: "cartItems",
     foreignKey: "variant_id",
-    onDelete: "RESTRICT" // Không nên xóa variant nếu còn trong giỏ hàng
+    onDelete: "RESTRICT"
 });
 CartItem.belongsTo(ProductVariant, {
     as: "variant",
     foreignKey: "variant_id"
 });
 
+// ====================== ORDER ASSOCIATIONS ======================
+
+// --- 11. User <-> Order (1:N) ---
+User.hasMany(Order, {
+    as: "orders",
+    foreignKey: "user_id",
+    onDelete: "CASCADE"
+});
+Order.belongsTo(User, {
+    as: "user",
+    foreignKey: "user_id"
+});
+
+// --- 12. Cart <-> Order (1:1) ---
+Cart.hasOne(Order, {
+    as: "order",
+    foreignKey: "cart_id",
+    onDelete: "SET NULL"
+});
+Order.belongsTo(Cart, {
+    as: "cart",
+    foreignKey: "cart_id"
+});
+
+// --- 13. Order <-> OrderItem (1:N) ---
+Order.hasMany(OrderItem, {
+    as: "orderItems",
+    foreignKey: "order_id",
+    onDelete: "CASCADE"
+});
+OrderItem.belongsTo(Order, {
+    as: "order",
+    foreignKey: "order_id"
+});
+
+// --- 14. ProductVariant <-> OrderItem (1:N) ---
+ProductVariant.hasMany(OrderItem, {
+    as: "orderItems",
+    foreignKey: "variant_id",
+    onDelete: "RESTRICT"
+});
+OrderItem.belongsTo(ProductVariant, {
+    as: "variant",
+    foreignKey: "variant_id"
+});
+
+// ====================== PAYMENT ASSOCIATIONS (1:1) ======================
+
+// --- 15. Order <-> Payment (1:1) ---
+// 🔄 THAY ĐỔI: Một Order chỉ có một Payment duy nhất
+Order.hasOne(Payment, {
+    as: "payment",  // ⚠️ Đổi từ "payments" sang "payment" (số ít)
+    foreignKey: "order_id",
+    onDelete: "CASCADE" // Nếu Order bị xóa, Payment cũng bị xóa
+});
+
+Payment.belongsTo(Order, {
+    as: "order",
+    foreignKey: "order_id"
+});
 
 // ====================== Export Models ======================
 export {
@@ -146,11 +208,13 @@ export {
     Product,
     ProductVariant,
     Coupon,
-    MembershipTier, 
+    MembershipTier,
     Favorite,
-    ConditionSet, 
+    ConditionSet,
     ConditionDetail,
-    // === EXPORT MODELS MỚI ===
     Cart,
-    CartItem
+    CartItem,
+    Order,
+    OrderItem,
+    Payment
 };

@@ -3,12 +3,13 @@ import { Request, Response } from "express";
 import handleError from "../helpers/handleError.helper";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { FavoriteService } from "../services/favorite.service";
+import { EmailService } from "../services/email.service";
 import { User } from "../models";
 import parseId from "../helpers/checkId";
 
 
 const favoriteService = new FavoriteService();
-
+const emailService = new EmailService();
 const favoriteController = {
     /**
      * [GET] Lấy danh sách sản phẩm yêu thích của người dùng.
@@ -96,6 +97,19 @@ const favoriteController = {
             return handleError(res, 500, error.message || error);
         }
     },
+    sendEmail: async (req: Request, res: Response) => {
+        try {
+           await emailService.sendMail(
+            "leq85151@gmail.com","Hello","<h1>UUIIAA</h1>"
+           )
+            return res.status(200).json({
+                success: true,
+            });
+        } catch (error) {
+            return handleError(res, 500, error);
+        }
+    },
+    
 };
 
 export default favoriteController;

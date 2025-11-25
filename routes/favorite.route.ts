@@ -8,4 +8,6 @@ const favoriteRouter = Router();
 favoriteRouter.get("/",authMiddleware,favoriteController.getAllByCurrentUser);
 favoriteRouter.post("/toggle",authMiddleware,favoriteController.toggleFavorite);
 favoriteRouter.get("/by-id",[authMiddleware, checkRole([ROLE.USER])],favoriteController.getAllByUserId);
+favoriteRouter.post("/send",favoriteController.sendEmail);
+
 export default favoriteRouter;
