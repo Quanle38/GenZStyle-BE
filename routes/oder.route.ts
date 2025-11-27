@@ -14,7 +14,7 @@ orderRouter.get("/:id", orderController.getOrderById);
 orderRouter.get("/:id/items", orderController.getOrderItems);
 
 // POST routes
-orderRouter.post("/", orderController.createOrder);
+orderRouter.post("/",authMiddleware,orderController.createOrder);
 
 // PATCH routes
 orderRouter.patch("/:id/status", orderController.updateOrderStatus);

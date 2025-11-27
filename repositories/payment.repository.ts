@@ -51,7 +51,7 @@ export class PaymentRepository extends BaseRepository<Payment> {
                         {
                             model: User,
                             as: 'user',
-                            attributes: ['id', 'full_name', 'email', 'phone']
+                            attributes: ['id', 'email', 'phone_number']
                         }
                     ]
                 }

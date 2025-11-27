@@ -13,7 +13,7 @@ Cart.init({
         type: DataTypes.STRING(255), 
         primaryKey: true,
         allowNull: false,
-        defaultValue: sequelize.literal("next_user_id()")
+        defaultValue: sequelize.literal("next_cart_id()")
             
     },
     user_id: {
