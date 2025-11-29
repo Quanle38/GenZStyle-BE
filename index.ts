@@ -18,9 +18,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors());
 
-// Swagger
-setupSwagger(app);  // <-- thêm
+// // Swagger
+// setupSwagger(app);  // <-- thêm
 
+// ===== THÊM LOGGING MIDDLEWARE NÀY =====
+app.use((req, res, next) => {
+  console.log('='.repeat(50));
+  console.log(`📨 ${new Date().toISOString()}`);
+  console.log(`${req.method} ${req.originalUrl}`);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('='.repeat(50));
+  next();
+});
+// ========================================
 // Mount routes
 routeAPI(app);
 

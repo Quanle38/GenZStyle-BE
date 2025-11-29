@@ -38,6 +38,7 @@ Payment.init({
     type: {
         type: DataTypes.TEXT,
         allowNull: false,
+        defaultValue : "in"
         // Có thể thêm: validate: { isIn: [['in', 'out']] }
     },
     reference_number: {

@@ -68,6 +68,16 @@ export class PaymentRepository extends BaseRepository<Payment> {
             where: { order_id: orderId }
         });
     }
+    /**
+     * 🔄 Check Dupicate Payment
+     * Method này trả về Payment 
+     */
+      async checkDuplicatePayment(referenceCode : string): Promise<Payment | null> {
+        return await this.findOne({
+            where: { reference : referenceCode }
+        });
+    }
+
 
     /**
      * Tìm payment của order với thông tin chi tiết
@@ -182,7 +192,7 @@ export class PaymentRepository extends BaseRepository<Payment> {
     /**
      * Tạo mới một giao dịch thanh toán
      */
-    async createPayment(data: CreatePaymentPayload): Promise<Payment> {
+    async createPayment(data: Partial<Payment>): Promise<Payment> {
         return this.create(data);
     }
 

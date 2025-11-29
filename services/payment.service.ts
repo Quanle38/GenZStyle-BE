@@ -18,7 +18,9 @@ export class PaymentService {
     ): Promise<string> {
         const bank = process.env.BANK;
         const account = process.env.ACCOUNT;
-        const create = await uow.payment.createPayment(body);
+        body.status = TransactionStatus.Pending;
+        console.log(body)
+        const create = await uow.payment.createPayment({...body,type : "in"});
         const id =   generateIdByFormat("PM",6, create.id);
         const linkQR = `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${body.amount}&des=${id}&template=compact&download=false`
         return linkQR;
@@ -32,6 +34,15 @@ export class PaymentService {
         paymentId: number
     ): Promise<Payment | null> {
         return await uow.payment.findByIdWithDetails(paymentId);
+    } 
+    /**
+     * Lấy thông tin chi tiết một giao dịch thanh toán
+     */
+    async checkDuplicatePayment(
+        uow: UnitOfWork,
+            referenceCode : string
+    ): Promise<Payment | null> {
+        return await uow.payment.checkDuplicatePayment(referenceCode);
     }
 
     /**
@@ -430,4 +441,7 @@ export class PaymentService {
 
         await uow.payment.delete(paymentId);
     }
+
+    
+
 }
