@@ -3,7 +3,9 @@ import { Request, Response } from "express";
 import handleError from "../helpers/handleError.helper";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { authService } from "../services/auth.service";
+import {CloudinaryService} from "../services/cloudinary.service"
 
+const cloudinaryService = new CloudinaryService;
 const authController = {
   login: async (req: Request, res: Response) => {
     const uow = new UnitOfWork();
@@ -23,11 +25,16 @@ const authController = {
   register: async (req: Request, res: Response) => {
     const uow = new UnitOfWork();
     try {
+      const body = req.body;
       await uow.start();
-
+      if(req.file){
+        const buffer = req.file?.buffer;
+        const mineType = req.file.mimetype;
+        const upload = await cloudinaryService.saveToCloud(buffer,mineType)
+        body.avatar = upload
+      }
       const result = await authService.register(uow, req.body);
       await uow.commit();
-
       return res.status(201).json({ message: "Register successfully", data: result });
     } catch (error: any) {
       await uow.rollback();

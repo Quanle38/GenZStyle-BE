@@ -4,4 +4,5 @@ export interface UpdateRequestBodyUser {
     dob?: Date; // PostgreSQL date → JS Date
     phone_number?: string;
     gender?: string;
+    avatar? : string;
 }

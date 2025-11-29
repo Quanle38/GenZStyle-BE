@@ -7,4 +7,5 @@ export interface RegisterRequestBody {
   birthday: string;
   gender: string;
   address: string;
+  avatar? : string;  
 }

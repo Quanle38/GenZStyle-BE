@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/connection";
+import { OrderStatus, OrderMethod } from "../enums/order"; // Import OrderMethod
 
 export interface OrderAttributes {
     id: string;
@@ -8,12 +9,13 @@ export interface OrderAttributes {
     quantity: number;
     total_price: number;
     status: string;
+    method: string; // ✨ Đã thêm trường method
     created_at: Date;
     updated_at: Date;
 }
 
 interface OrderCreationAttributes extends Optional<OrderAttributes,
-    "id" | "created_at" | "updated_at" | "status" | "cart_id"> { }
+    "id" | "created_at" | "updated_at" | "status" | "cart_id" | "method"> { } // ✨ Thêm 'method' vào Optional
 
 export class Order
     extends Model<OrderAttributes, OrderCreationAttributes>
@@ -25,6 +27,7 @@ export class Order
     public quantity!: number;
     public total_price!: number;
     public status!: string;
+    public method!: string; // ✨ Khai báo thuộc tính method
     public created_at!: Date;
     public updated_at!: Date;
 }
@@ -57,7 +60,13 @@ Order.init({
     status: {
         type: DataTypes.STRING(50),
         allowNull: true,
-        defaultValue: "pending"
+        defaultValue: OrderStatus.PENDING
+    },
+    // ✨ Định nghĩa trường method mới
+    method: {
+        type: DataTypes.STRING(50), // Hoặc dùng DataTypes.ENUM
+        allowNull: false,
+        defaultValue: OrderMethod.CAST // Mặc định là thanh toán tiền mặt/COD
     },
     created_at: {
         type: DataTypes.DATE,

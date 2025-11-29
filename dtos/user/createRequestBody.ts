@@ -8,4 +8,5 @@ export interface CreateRequestBodyUser {
       gender: string;
       password: string;
       membership_id : string;
+      avatar? : string;
 }

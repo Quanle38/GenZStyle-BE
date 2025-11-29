@@ -7,9 +7,12 @@ import { SepayBodyResponse } from "../dtos/payment/response/sepayBodyResponse";
 import { Payment } from "../models";
 import { TransactionStatus } from "../enums/transaction";
 import { SplitId } from "../helpers/splitId";
+import { OrderService } from "../services/order.service";
+import { OrderStatus } from "../enums/order";
+import { or } from "sequelize";
 
 const paymentService = new PaymentService;
-
+const orderService = new OrderService;
 const paymentController = {
     heath: async (req: Request, res: Response) => {
         return res.status(200).json({
@@ -89,23 +92,6 @@ const paymentController = {
             if (transferType === "in") {
                 amountIn = Number(transferAmount);
             }
-
-            // const existPayment = await paymentService.checkDuplicatePayment(uow, referenceCode);
-            // if (existPayment) {
-            //     console.log(" giao dich bi trung ")
-
-            //     return res.json({
-            //         success: true,
-            //         message: "Duplicate transaction ignored"
-            //     });
-            // }
-
-            // console.log("Sepay connect successfully");
-            // console.log("body", data);
-
-            // Fix: Tìm payment theo content/description thay vì referenceCode
-            // Vì referenceCode trong webhook là mã giao dịch từ ngân hàng
-            // Còn ID payment của bạn nằm trong content/description
             const paymentId = content || description; // ID payment của bạn (PM000001)
             if (!paymentId) {
                 console.log("Ko co paymentID")
@@ -126,12 +112,13 @@ const paymentController = {
 
             const update: Partial<Payment> = {
                 reference_number: referenceCode,
+                gateway: gateway,
                 status: TransactionStatus.Completed
             };
 
             if (transferType === "in") {
-                
                 await paymentService.updatePayment(uow, payment.id, update);
+                await orderService.updateOrderStatus(uow, payment.order_id, OrderStatus.COMPLETED);
             }
 
             await uow.commit();
@@ -139,8 +126,59 @@ const paymentController = {
             return res.status(200).json({ success: true });
 
         } catch (error) {
-            return handleError(res, 500, error)
+            return handleError(res, 500, error);
         }
     },
+    // Giả định:
+    // 1. Nếu thanh toán được tạo thành công, đơn hàng sẽ chuyển từ PENDING sang PROCESSING.
+    // 2. Chỉ chấp nhận tạo thanh toán cho đơn hàng ở trạng thái PENDING.
+
+    completePayment: async (req: Request, res: Response) => {
+        const uow = new UnitOfWork();
+
+        try {
+            const body = req.body as CreatePaymentPayload;
+            console.log("body", body);
+
+            // 1. Kiểm tra sự tồn tại của thanh toán
+            const isExist = await paymentService.getPaymentByOrderId(uow, body.order_id);
+            if (isExist) {
+                return handleError(res, 400, `Order ${body.order_id} already has a payment. Cannot create multiple payments for one order.`);
+            }
+
+            // 2. Lấy thông tin đơn hàng và kiểm tra trạng thái
+            const order = await orderService.getOrderById(uow, body.order_id);
+
+            if (!order) {
+                return handleError(res, 404, `Order ${body.order_id} not found.`);
+            }
+
+            // Chỉ cho phép tạo thanh toán cho đơn hàng ở trạng thái PENDING
+            if (order.status !== OrderStatus.DELIVERED) {
+                return handleError(res, 400, `Cannot create payment for order ${body.order_id} with status ${order.status}. Payment is only allowed for status ${OrderStatus.DELIVERED}.`);
+            }
+            await uow.start();
+            // 3. Tạo thanh toán (QR code/URL)
+            const create = await paymentService.createPayment(uow, body);
+            console.log("create", create);
+
+            // 4. Cập nhật trạng thái đơn hàng sang PROCESSING
+            // Bắt đầu một transaction (Unit of Work) để đảm bảo tính toàn vẹn (ACID)
+
+            await orderService.updateOrderStatus(uow, body.order_id, OrderStatus.COMPLETED);
+
+            await uow.commit(); // Hoàn tất transaction
+
+            return res.status(200).json({
+                qrUrl: create,
+                message: `Payment created successfully. Order status updated to ${OrderStatus.COMPLETED}.`
+            });
+        } catch (error) {
+            // Nếu có lỗi, rollback transaction (quan trọng khi dùng UoW)
+            await uow.rollback();
+            return handleError(res, 500, error);
+        }
+    }
+
 }
 export default paymentController

@@ -2,6 +2,7 @@
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { Order, OrderAttributes } from "../models/order.model";
 import { OrderItem } from "../models/orderItem.model";
+import { OrderStatus } from "../enums/order";
 
 export interface CreateOrderData {
     user_id: string;
@@ -25,8 +26,8 @@ export class OrderService {
     /**
      * Lấy chi tiết một đơn hàng
      */
-    async getOrderById(uow: UnitOfWork, orderId: string, userId: string): Promise<Order | null> {
-        return uow.order.findByIdAndUserId(orderId, userId);
+    async getOrderById(uow: UnitOfWork, orderId: string): Promise<Order | null> {
+        return uow.order.findById(orderId);
     }
 
     /**
@@ -52,8 +53,7 @@ export class OrderService {
             user_id: orderData.user_id,
             cart_id: orderData.cart_id || null,
             quantity: totalQuantity,
-            total_price: totalPrice,
-            status: "pending"
+            total_price: totalPrice
         };
 
         const createdOrder = await uow.order.create(newOrder);
@@ -86,11 +86,10 @@ export class OrderService {
     async updateOrderStatus(
         uow: UnitOfWork, 
         orderId: string, 
-        userId: string, 
         newStatus: string
     ): Promise<Order> {
         // Kiểm tra đơn hàng tồn tại và thuộc về user
-        const order = await uow.order.findByIdAndUserId(orderId, userId);
+        const order = await uow.order.findById(orderId);
         if (!order) {
             throw new Error("Order not found or access denied.");
         }
@@ -122,8 +121,8 @@ export class OrderService {
     /**
      * Hủy đơn hàng (chỉ được phép khi status là "pending")
      */
-    async cancelOrder(uow: UnitOfWork, orderId: string, userId: string): Promise<Order> {
-        const order = await uow.order.findByIdAndUserId(orderId, userId);
+    async cancelOrder(uow: UnitOfWork, orderId: string): Promise<Order> {
+        const order = await uow.order.findById(orderId);
         if (!order) {
             throw new Error("Order not found or access denied.");
         }
@@ -132,7 +131,7 @@ export class OrderService {
             throw new Error("Only pending orders can be cancelled.");
         }
 
-        return this.updateOrderStatus(uow, orderId, userId, "cancelled");
+        return this.updateOrderStatus(uow, orderId, OrderStatus.CANCELLED);
     }
 
     /**
@@ -177,9 +176,9 @@ export class OrderService {
     /**
      * Lấy chi tiết các items trong đơn hàng
      */
-    async getOrderItems(uow: UnitOfWork, orderId: string, userId: string): Promise<OrderItem[]> {
+    async getOrderItems(uow: UnitOfWork, orderId: string): Promise<OrderItem[]> {
         // Kiểm tra quyền truy cập
-        const order = await uow.order.findByIdAndUserId(orderId, userId);
+        const order = await uow.order.findById(orderId);
         if (!order) {
             throw new Error("Order not found or access denied.");
         }
@@ -190,8 +189,8 @@ export class OrderService {
     /**
      * Xóa đơn hàng (chỉ admin hoặc khi status là "cancelled")
      */
-    async deleteOrder(uow: UnitOfWork, orderId: string, userId: string): Promise<boolean> {
-        const order = await uow.order.findByIdAndUserId(orderId, userId);
+    async deleteOrder(uow: UnitOfWork, orderId: string): Promise<boolean> {
+        const order = await uow.order.findById(orderId);
         if (!order) {
             throw new Error("Order not found or access denied.");
         }

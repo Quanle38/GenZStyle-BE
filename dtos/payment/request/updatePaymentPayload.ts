@@ -1,5 +1,5 @@
 export interface UpdatePaymentPayload {
-    gateway?: string;
+    gateway?: string | null;
     amount?: number;
     type?: 'in' | 'out';
     reference_number?: string | null;

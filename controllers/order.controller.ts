@@ -2,6 +2,7 @@
 import { Request, Response } from "express";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { OrderService, CreateOrderData } from "../services/order.service";
+import { OrderStatus } from "../enums/order";
 
 export class OrderController {
     private orderService: OrderService;
@@ -17,10 +18,32 @@ export class OrderController {
     getAllOrders = async (req: Request, res: Response): Promise<void> => {
         const uow = new UnitOfWork();
         try {
-            console.log("user",req.user)
+            console.log("user", req.user)
             const userId = req.user?.id;
             if (!userId) {
                 res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            const orders = await this.orderService.getAllOrders(uow, userId);
+            res.status(200).json({
+                success: true,
+                data: orders
+            });
+        } catch (error: any) {
+            res.status(500).json({
+                success: false,
+                message: error.message || "Failed to fetch orders"
+            });
+        }
+    };
+
+    getAllOrderByUserId = async (req: Request, res: Response): Promise<void> => {
+        const uow = new UnitOfWork();
+        try {
+            console.log("user", req.user)
+            const userId = req.body?.user_id;
+            if (!userId) {
+                res.status(404).json({ message: "User not exist" });
                 return;
             }
             const orders = await this.orderService.getAllOrders(uow, userId);
@@ -50,7 +73,7 @@ export class OrderController {
             }
 
             const { id } = req.params;
-            const order = await this.orderService.getOrderById(uow, id, userId);
+            const order = await this.orderService.getOrderById(uow, id);
 
             if (!order) {
                 res.status(404).json({
@@ -162,8 +185,7 @@ export class OrderController {
             await uow.start();
 
             const { id } = req.params;
-            const { status } = req.body;
-
+            var status: OrderStatus = req.body.status;
             if (!status) {
                 res.status(400).json({
                     success: false,
@@ -172,7 +194,7 @@ export class OrderController {
                 return;
             }
 
-            const order = await this.orderService.updateOrderStatus(uow, id, userId, status);
+            const order = await this.orderService.updateOrderStatus(uow, id, userId);
             await uow.commit();
 
             res.status(200).json({
@@ -205,7 +227,7 @@ export class OrderController {
             await uow.start();
 
             const { id } = req.params;
-            const order = await this.orderService.cancelOrder(uow, id, userId);
+            const order = await this.orderService.cancelOrder(uow, id);
             await uow.commit();
 
             res.status(200).json({
@@ -305,7 +327,7 @@ export class OrderController {
             }
 
             const { id } = req.params;
-            const items = await this.orderService.getOrderItems(uow, id, userId);
+            const items = await this.orderService.getOrderItems(uow, id);
 
             res.status(200).json({
                 success: true,
@@ -335,7 +357,7 @@ export class OrderController {
             await uow.start();
 
             const { id } = req.params;
-            const deleted = await this.orderService.deleteOrder(uow, id, userId);
+            const deleted = await this.orderService.deleteOrder(uow, id);
             await uow.commit();
 
             if (!deleted) {

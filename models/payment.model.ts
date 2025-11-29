@@ -7,7 +7,7 @@ export class Payment extends Model {
     public id!: number;
 
     public order_id!: string;
-    public gateway!: string;
+    public gateway!: string | null;
     public amount!: number;
     public type!: 'in' | 'out';
     public reference_number!: string | null;
@@ -29,7 +29,7 @@ Payment.init({
     },
     gateway: {
         type: DataTypes.STRING(50),
-        allowNull: false,
+        allowNull: true,
     },
     amount: {
         type: DataTypes.DECIMAL(20, 2),

@@ -19,18 +19,6 @@ export class OrderRepository extends BaseRepository<Order> {
         });
     }
 
-    /**
-     * Tìm đơn hàng theo ID và user_id (để đảm bảo quyền truy cập).
-     */
-    async findByIdAndUserId(orderId: string, userId: string): Promise<Order | null> {
-        return this.findOne({
-            where: {
-                id: orderId,
-                user_id: userId
-            },
-            include: ['orderItems'] // Bao gồm chi tiết sản phẩm
-        });
-    }
 
     /**
      * Tìm đơn hàng theo trạng thái.
