@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import routeAPI from "./routes/index.route";
 import { connectDB } from "./config/connection";
 import { sequelize } from "./models/index";
+import {setupSwagger} from "./swagger"
 
 dotenv.config();
 
@@ -25,6 +26,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+//setup swagger
+setupSwagger(app);
 
 // Logging middleware
 app.use((req, res, next) => {

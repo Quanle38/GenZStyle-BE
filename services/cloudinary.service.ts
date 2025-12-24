@@ -1,5 +1,4 @@
-import { v2 as cloudinary } from 'cloudinary';
-
+import cloud from "../config/cloudinary";
 
 export class CloudinaryService {
 
@@ -13,7 +12,7 @@ export class CloudinaryService {
     async saveToCloud(
         fileBuffer: Buffer, 
         mimeType: string, 
-        folderName: string = AVATAR
+       folderName: string = "AVATAR"
     ): Promise<string | null> {
         try {
             // 1. Chuyển Buffer thành Data URI (chuỗi Base64)
@@ -21,7 +20,7 @@ export class CloudinaryService {
             const dataUri = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
 
             // 2. Tải Data URI lên Cloudinary
-            const result = await cloudinary.uploader.upload(dataUri, {
+            const result = await cloud.uploader.upload(dataUri, {
                 folder: folderName,
                 // Các tùy chọn khác như public_id, resource_type, v.v.
             });

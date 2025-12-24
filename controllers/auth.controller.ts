@@ -46,7 +46,6 @@ const authController = {
     const uow = new UnitOfWork();
     try {
       await uow.start();
-
       const token = req.headers["authorization"]?.split(" ")[1];
       const result = await authService.refreshToken(uow, token!);
       await uow.commit();

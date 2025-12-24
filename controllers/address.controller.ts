@@ -4,7 +4,8 @@ import handleError from "../helpers/handleError.helper";
 import parseId from "../helpers/checkId";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { UserAddressService } from "../services/userAddress.services";
-import { UserAddress } from "../types/tableType"; // Giả sử type này giống với model interface
+import { UserAddressAttributes } from "../models/userAddress.model";
+
 // Import từ userAddress.model nếu cần type cho request body
 
 const userAddressService = new UserAddressService();
@@ -19,7 +20,7 @@ const userAddressController = {
         try {
             // **GIẢ ĐỊNH**: user_id được lấy từ token (req.user) sau khi authenticated
             const userId = req.body.user_id; // Thay bằng req.user.id trong môi trường thực
-            const addressData: Partial<UserAddress> = req.body;
+            const addressData: Partial<UserAddressAttributes> = req.body;
 
             if (!userId) {
                  return handleError(res, 401, "User ID is missing or unauthorized");
@@ -105,7 +106,7 @@ const userAddressController = {
             // **GIẢ ĐỊNH**: user_id được lấy từ token (req.user) sau khi authenticated
             const userId = req.body.user_id; // Hoặc lấy từ req.user.id
             const addressId = req.params.id;
-            const updateData: Partial<UserAddress> = req.body;
+            const updateData: Partial<UserAddressAttributes> = req.body;
 
             if (!userId) {
                  return handleError(res, 401, "User ID is missing or unauthorized");

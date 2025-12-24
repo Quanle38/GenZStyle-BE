@@ -65,14 +65,12 @@ export class AuthService {
             await uow.users.updatePassword(user.id, newHashed);
         }
 
-        const accessToken = generateToken(user);
         const refreshToken = generateRefreshToken(user);
 
         await uow.users.updateRefreshToken(user.id, refreshToken);
 
         return {
-            access_token: accessToken,
-            refresh_token: refreshToken,
+            access_token: refreshToken,
             user: this.sanitizeUser(user)
         };
     }
@@ -156,13 +154,10 @@ export class AuthService {
         if (!user) throw { status: 404, message: "User not found or refresh token revoked" };
 
         const newRefresh = generateRefreshToken(user);
-        const newAccess = generateToken(user);
-
         await uow.users.updateRefreshToken(user.id, newRefresh);
 
         return {
-            access_token: newAccess,
-            refresh_token: newRefresh
+            access_token: newRefresh,
         };
     }
 
