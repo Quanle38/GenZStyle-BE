@@ -10,7 +10,7 @@ router.patch("/update/:id", [authMiddleware, checkRole([ROLE.ADMIN,ROLE.USER])],
 //ADMIN
 router.post("/create",[authMiddleware, checkRole([ROLE.ADMIN])] ,userController.create);
 router.get("/getAll",[authMiddleware, checkRole([ROLE.ADMIN])] , userController.getAll);
-router.get("/get/:id",[authMiddleware, checkRole([ROLE.ADMIN])] , userController.getById);
+router.get("/get/:id",[authMiddleware, checkRole([ROLE.ADMIN, ROLE.USER])] , userController.getById);
 router.delete("/delete/:id", [authMiddleware, checkRole([ROLE.ADMIN])],userController.deleteOne);
 
 export default router;
