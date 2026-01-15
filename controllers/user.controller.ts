@@ -4,9 +4,10 @@ import handleResponse from "../helpers/handleResponse.helper";
 import parseId from "../helpers/checkId";
 import { UserService } from "../services/user.services";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
+import { CloudinaryService } from "../services/cloudinary.service";
 
 const userService = new UserService();
-
+const cloudinaryService = new CloudinaryService();
 const userController = {
   // ===== LIST (CÓ PAGINATION) =====
   getAll: async (req: Request, res: Response) => {
@@ -33,7 +34,7 @@ const userController = {
     const uow = new UnitOfWork();
     try {
       const id = parseId(req.params.id);
-      console.log("id",id)
+      console.log("id", id)
       const user = await userService.getById(uow, id);
 
       if (!user) {
@@ -71,11 +72,28 @@ const userController = {
   // ===== UPDATE =====
   update: async (req: Request<{ id: string }>, res: Response) => {
     const uow = new UnitOfWork();
+
     try {
       await uow.start();
 
+      const body = { ...req.body };
+      console.log(body);
+
+      if (req.file) {
+        const buffer = req.file.buffer;
+        const mimeType = req.file.mimetype;
+
+        const uploadUrl = await cloudinaryService.saveToCloud(
+          buffer,
+          mimeType
+        );
+
+        body.avatar = uploadUrl;
+      }
+
       const id = parseId(req.params.id);
-      const user = await userService.update(uow, id, req.body);
+
+      const user = await userService.update(uow, id, body);
 
       if (!user) {
         await uow.rollback();
@@ -83,16 +101,16 @@ const userController = {
       }
 
       await uow.commit();
+
       return handleResponse(res, 200, {
         message: "User updated successfully",
-        data: user
+        data: user,
       });
-    } catch {
+    } catch (error) {
       await uow.rollback();
       return handleError(res, 500, "Update user failed");
     }
   },
-
   // ===== DELETE =====
   deleteOne: async (req: Request<{ id: string }>, res: Response) => {
     const uow = new UnitOfWork();
