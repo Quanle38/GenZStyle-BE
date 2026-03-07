@@ -3,12 +3,11 @@ import userController from "../controllers/user.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { checkRole } from "../middleware/role.middleware";
 import { ROLE } from "../enums/role.enum";
-import multer from "multer";
+import upload from "../middleware/upload.middleware";
 
 const router = Router();
 // User : getId, update 
-
-router.patch("/update/:id", [authMiddleware,checkRole([ROLE.ADMIN,ROLE.USER])],userController.update);
+router.patch("/update/:id", [authMiddleware,checkRole([ROLE.ADMIN,ROLE.USER])],upload.single("file"),userController.update);
 //ADMIN
 router.post("/create",[authMiddleware, checkRole([ROLE.ADMIN])] ,userController.create);
 router.get("/getAll",[authMiddleware, checkRole([ROLE.ADMIN])] , userController.getAll);

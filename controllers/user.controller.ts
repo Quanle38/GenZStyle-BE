@@ -78,17 +78,9 @@ const userController = {
 
       const body = { ...req.body };
       console.log(body);
-
+      console.log(req.file);
       if (req.file) {
-        const buffer = req.file.buffer;
-        const mimeType = req.file.mimetype;
-
-        const uploadUrl = await cloudinaryService.saveToCloud(
-          buffer,
-          mimeType
-        );
-
-        body.avatar = uploadUrl;
+        body.avatar = req.file.path; // ✅ URL Cloudinary
       }
 
       const id = parseId(req.params.id);

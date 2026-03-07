@@ -93,7 +93,6 @@ export class ProductService {
             page ? Number(page) : 1,
             limit ? Number(limit) : 10
         );
-
         return {
             currentPage: page ? Number(page) : 1,
             totalPage: Math.ceil(count / (limit ? Number(limit) : 10)),
@@ -101,4 +100,7 @@ export class ProductService {
             data: rows,
         };
     }
+    
+   
+
 }

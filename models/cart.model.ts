@@ -1,40 +1,56 @@
-import { DataTypes, Model } from "sequelize";
+import {
+  DataTypes,
+  Model,
+  Association,
+  HasManyGetAssociationsMixin
+} from "sequelize";
 import { sequelize } from "../config/connection";
+import { CartItem } from "./cartItem.model";
 
 export class Cart extends Model {
-    public id!: string; 
-    public user_id!: string; 
-    public amount!: number; 
-    public total_price!: number; 
+  public id!: string;
+  public user_id!: string;
+  public amount!: number;
+  public total_price!: number;
+
+  // ✅ BỔ SUNG: quan hệ items
+  public items?: CartItem[];
+
+  // (optional) mixin nếu cần dùng
+  public getItems!: HasManyGetAssociationsMixin<CartItem>;
+
+  public static associations: {
+    items: Association<Cart, CartItem>;
+  };
 }
 
-Cart.init({
+Cart.init(
+  {
     id: {
-        type: DataTypes.STRING(255), 
-        primaryKey: true,
-        allowNull: false,
-        defaultValue: sequelize.literal("next_cart_id()")
-            
+      type: DataTypes.STRING(255),
+      primaryKey: true,
+      allowNull: false,
+      defaultValue: sequelize.literal("next_cart_id()")
     },
     user_id: {
-        type: DataTypes.STRING(255), 
-        allowNull: false
+      type: DataTypes.STRING(255),
+      allowNull: false
     },
     amount: {
-        type: DataTypes.INTEGER, 
-        allowNull: false,
-        defaultValue: 0
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     },
     total_price: {
-        type: DataTypes.DECIMAL(10, 2), 
-        allowNull: false,
-        defaultValue: 0.00
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0.0
     }
-}, {
+  },
+  {
     sequelize,
-    tableName: "Carts", 
-    // ✅ BỔ SUNG DÒNG NÀY ĐỂ TẮT created_at VÀ updated_at
-    timestamps: false, 
-    // -----------------------
-    underscored: true 
-});
+    tableName: "Carts",
+    timestamps: false,
+    underscored: true
+  }
+);

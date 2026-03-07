@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import handleError from "../helpers/handleError.helper";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { authService } from "../services/auth.service";
-import {CloudinaryService} from "../services/cloudinary.service"
+import { CloudinaryService } from "../services/cloudinary.service"
 
 const cloudinaryService = new CloudinaryService;
 const authController = {
@@ -27,13 +27,10 @@ const authController = {
     try {
       const body = req.body;
       await uow.start();
-      if(req.file){
-        const buffer = req.file?.buffer;
-        const mineType = req.file.mimetype;
-        const upload = await cloudinaryService.saveToCloud(buffer,mineType)
-        body.avatar = upload
+      if (req.file) {
+        body.avatar = req.file.path; // ✅ URL Cloudinary
       }
-      const result = await authService.register(uow, req.body);
+      const result = await authService.register(uow, body);
       await uow.commit();
       return res.status(201).json({ message: "Register successfully", data: result });
     } catch (error: any) {
@@ -47,6 +44,7 @@ const authController = {
     try {
       await uow.start();
       const token = req.headers["authorization"]?.split(" ")[1];
+      console.log(token)
       const result = await authService.refreshToken(uow, token!);
       await uow.commit();
 

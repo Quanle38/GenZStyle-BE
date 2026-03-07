@@ -1,17 +1,20 @@
 import { Router } from "express";
 import couponController from "../controllers/coupon.controller";
+import { checkRole } from "../middleware/role.middleware";
+import { authMiddleware } from "../middleware/auth.middleware";
+import { ROLE } from "../enums/role.enum";
 
 // Khởi tạo Router
 const couponRouter = Router();
 
 // --- 1. ADMIN/MANAGEMENT ROUTES (GET) ---
 // Lấy tất cả coupon (có phân trang, tìm kiếm)
-couponRouter.get("/", couponController.getAllCoupons);
+couponRouter.get("/",authMiddleware,checkRole([ROLE.ADMIN, ROLE.USER]), couponController.getAllCoupons);
 
 // --- 2. USER VIEW ROUTES (GET) ---
 // Lấy tất cả coupon khả dụng cho một user (Yêu cầu userId)
 // Thường là GET /api/coupons/available hoặc GET /api/coupons/user
-couponRouter.get("/get-all-by-user-id", couponController.getAllCouponByUserId);
+couponRouter.get("/get-all-by-user-id",authMiddleware,checkRole([ROLE.ADMIN, ROLE.USER]), couponController.getAllCouponByUserId);
 
 // Lấy thông tin coupon theo mã code (Dùng để hiển thị chi tiết)
 couponRouter.get("/get-by-code", couponController.getCouponByCode);

@@ -21,7 +21,7 @@ const cartController = {
             }
 
             const cart = await cartService.getOrCreateCart(uow, user.id);
-
+            
             return res.status(200).json({
                 success: true,
                 message: "Fetched cart successfully",
@@ -156,6 +156,34 @@ const cartController = {
             await uow.rollback();
             console.error("CartController: clearCart failed", error);
             return handleError(res, 500, error.message || "Failed to clear cart");
+        }
+    },
+
+    async updateItem(req: Request, res: Response) {
+        const uow = new UnitOfWork();
+        const cartService = new CartService();
+
+        const cartItemId = Number(req.params.cartItemId);
+        const { quantity, variantId } = req.body;
+
+        try {
+            await uow.start();
+
+            const updatedItem = await cartService.updateCartItem(
+                uow,
+                cartItemId,
+                { quantity, variantId }
+            );
+
+            await uow.commit();
+
+            res.json({
+                success: true,
+                data: updatedItem
+            });
+        } catch (err) {
+            await uow.rollback();
+            throw err;
         }
     }
 };

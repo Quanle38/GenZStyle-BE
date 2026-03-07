@@ -9,6 +9,8 @@ productRouter.get("/", productController.getAll);
 productRouter.get("/search", productController.search);
 productRouter.get("/:id", productController.getById);
 
+
+
 productRouter.post("/create", productController.create);
 productRouter.post("/update/:id", [authMiddleware, checkRole([ROLE.ADMIN])],productController.update);
 productRouter.delete("/delete/:id", [authMiddleware, checkRole([ROLE.ADMIN])],productController.deleteOne);

@@ -1,182 +1,164 @@
 import { UserAddress } from "../models";
-import { BaseRepository } from "../repositories/baseRepository"
-import { FindOptions } from "sequelize";
+import { BaseRepository } from "../repositories/baseRepository";
+import { Op } from "sequelize";
 
 export class UserAddressRepository extends BaseRepository<UserAddress> {
     protected model = UserAddress;
 
     /**
-     * Tìm tất cả địa chỉ của một user
+     * Lấy tất cả địa chỉ của user (chưa bị xóa)
      */
     async findByUserId(userId: string): Promise<UserAddress[]> {
         return this.findAll({
             where: {
                 user_id: userId,
-                is_deleted: false
+                is_deleted: false,
             },
-            order: [['is_default', 'DESC'], ['created_at', 'DESC']]
+            order: [
+                ["is_default", "DESC"],
+                ["created_at", "DESC"],
+            ],
         });
     }
 
     /**
-     * Đặt địa chỉ làm mặc định
+     * Lấy địa chỉ theo ID + userId (ownership enforced)
+     */
+    async findByIdAndUser(
+        addressId: string,
+        userId: string
+    ): Promise<UserAddress | null> {
+        return this.findOne({
+            where: {
+                address_id: addressId,
+                user_id: userId,
+                is_deleted: false,
+            },
+        });
+    }
+
+    /**
+     * Set địa chỉ làm mặc định (an toàn)
      */
     async setAsDefault(addressId: string, userId: string): Promise<boolean> {
-        // Bỏ default của tất cả địa chỉ khác
         await this.updateByCondition(
             { user_id: userId },
             { is_default: false }
         );
 
-        // Set địa chỉ hiện tại làm default
-        const [affectedCount] = await this.update(addressId, { 
-            is_default: true,
-            updated_at: new Date()
-        });
-        return affectedCount > 0;
-    }
-
-    /**
-     * Lấy địa chỉ mặc định của user
-     */
-    async findDefaultAddress(userId: string): Promise<UserAddress | null> {
-        return this.findOne({
-            where: {
+        const [affected] = await this.updateByCondition(
+            {
+                address_id: addressId,
                 user_id: userId,
+                is_deleted: false,
+            },
+            {
                 is_default: true,
-                is_deleted: false
+                updated_at: new Date(),
             }
-        });
+        );
+
+        return affected > 0;
     }
 
     /**
-     * Đếm số lượng địa chỉ của user
+     * Đếm số địa chỉ của user
      */
     async countByUserId(userId: string): Promise<number> {
         return this.count({
             where: {
                 user_id: userId,
-                is_deleted: false
-            }
+                is_deleted: false,
+            },
         });
     }
 
     /**
-     * Tìm địa chỉ theo label
+     * Kiểm tra có thể thêm địa chỉ mới không
      */
-    async findByLabel(userId: string, label: string): Promise<UserAddress | null> {
-        return this.findOne({
-            where: {
-                user_id: userId,
-                label,
-                is_deleted: false
-            }
-        });
+    async canAddMoreAddresses(
+        userId: string,
+        max: number = 5
+    ): Promise<boolean> {
+        const count = await this.countByUserId(userId);
+        return count < max;
     }
 
     /**
-     * Cập nhật địa chỉ
+     * Cập nhật địa chỉ (ownership enforced)
      */
     async updateAddress(
-        addressId: string, 
+        addressId: string,
+        userId: string,
         data: Partial<UserAddress>
     ): Promise<boolean> {
-        const [affectedCount] = await this.update(addressId, {
-            ...data,
-            updated_at: new Date()
-        });
-        return affectedCount > 0;
-    }
-
-    /**
-     * Xóa mềm tất cả địa chỉ của user
-     */
-    async softDeleteByUserId(userId: string): Promise<boolean> {
-        const addresses = await this.findByUserId(userId);
-        if (addresses.length === 0) return true;
-
-        const [affectedCount] = await this.updateByCondition(
-            { user_id: userId },
-            { 
-                is_deleted: true,
-                updated_at: new Date()
+        const [affected] = await this.updateByCondition(
+            {
+                address_id: addressId,
+                user_id: userId,
+                is_deleted: false,
+            },
+            {
+                ...data,
+                updated_at: new Date(),
             }
         );
-        return affectedCount > 0;
+
+        return affected > 0;
     }
 
     /**
-     * Xóa vĩnh viễn tất cả địa chỉ của user
+     * Xóa mềm địa chỉ theo user (ownership enforced)
      */
-    async hardDeleteByUserId(userId: string): Promise<number> {
-        const { Op } = require('sequelize');
-        return this.model.destroy({
-            where: {
-                user_id: userId
+    async softDeleteByUser(
+        addressId: string,
+        userId: string
+    ): Promise<boolean> {
+        const [affected] = await this.updateByCondition(
+            {
+                address_id: addressId,
+                user_id: userId,
+                is_deleted: false,
             },
-            transaction: this.transaction
-        });
+            {
+                is_deleted: true,
+                updated_at: new Date(),
+            }
+        );
+
+        return affected > 0;
     }
 
-    /**
-     * Kiểm tra user có địa chỉ nào không
-     */
-    async hasAddresses(userId: string): Promise<boolean> {
-        const count = await this.countByUserId(userId);
-        return count > 0;
-    }
 
     /**
-     * Lấy địa chỉ được tạo gần nhất
+     * Lấy địa chỉ mới nhất của user
      */
     async getLatestAddress(userId: string): Promise<UserAddress | null> {
         return this.findOne({
             where: {
                 user_id: userId,
-                is_deleted: false
+                is_deleted: false,
             },
-            order: [['created_at', 'DESC']]
+            order: [["created_at", "DESC"]],
         });
     }
 
     /**
-     * Tìm kiếm địa chỉ theo từ khóa
+     * Tìm kiếm địa chỉ
      */
     async searchAddresses(
-        userId: string, 
+        userId: string,
         keyword: string
     ): Promise<UserAddress[]> {
-        const { Op } = require('sequelize');
-        
         return this.findAll({
             where: {
                 user_id: userId,
                 is_deleted: false,
                 [Op.or]: [
                     { full_address: { [Op.like]: `%${keyword}%` } },
-                    { label: { [Op.like]: `%${keyword}%` } }
-                ]
+                    { label: { [Op.like]: `%${keyword}%` } },
+                ],
             },
-            order: [['is_default', 'DESC'], ['created_at', 'DESC']]
         });
-    }
-
-    /**
-     * Khôi phục địa chỉ đã xóa
-     */
-    async restore(addressId: string): Promise<boolean> {
-        const [affectedCount] = await this.update(addressId, { 
-            is_deleted: false,
-            updated_at: new Date()
-        });
-        return affectedCount > 0;
-    }
-
-    /**
-     * Validate số lượng địa chỉ tối đa (ví dụ: max 5 địa chỉ)
-     */
-    async canAddMoreAddresses(userId: string, maxAddresses: number = 5): Promise<boolean> {
-        const count = await this.countByUserId(userId);
-        return count < maxAddresses;
     }
 }

@@ -9,6 +9,7 @@ import membershipRouter from "./membership.route";
 import cartRouter from "./cart.route";
 import orderRouter from "./oder.route";
 import paymentRouter from "./payment.route";
+import userAddressRouter from "./address.route";
 
 const routeAPI = (app: Express) => {
   app.use("/api/v1/user", userRouter)
@@ -21,6 +22,7 @@ const routeAPI = (app: Express) => {
   app.use("/api/v1/cart", cartRouter)
   app.use("/api/v1/order", orderRouter)
   app.use("/api/v1/payment", paymentRouter)
+  app.use("/api/v1/user-address", userAddressRouter);
 }
 
 export default routeAPI;

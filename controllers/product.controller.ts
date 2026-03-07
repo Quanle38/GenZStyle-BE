@@ -66,7 +66,8 @@ const productController = {
             const result = await productService.search(uow, req.query);
             return res.status(200).json(result);
         } catch (error: any) { return handleError(res, error.status || 500, error.message || error); }
-    }
+    },
+    
 };
 
 export default productController;

@@ -31,6 +31,13 @@ cartRouter.post("/items", cartController.addItem);
  */
 cartRouter.delete("/items", cartController.removeItem);
 
+/**
+ * @route PUT /api/v1/carts/items/:cartItemId
+ * @desc Update cart item (quantity / variant)
+ * @access Private
+ */
+cartRouter.put("/items/:cartItemId", cartController.updateItem);
+
 
 export default cartRouter;
 
