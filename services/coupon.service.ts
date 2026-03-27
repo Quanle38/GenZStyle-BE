@@ -1,246 +1,248 @@
-// services/coupon.service.ts
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { Coupon, CouponCreationAttributes } from "../models/coupon.model";
-import { ConditionSet } from "../models/conditionSets.model"; // Đã sửa import path
-import { ConditionDetail, CouponConditionType } from "../models/conditionDetail.model";
-import { Op, FindOptions } from "sequelize";
+import { ConditionSet } from "../models/conditionSets.model";
+import { ConditionDetail } from "../models/conditionDetail.model";
+import { Op } from "sequelize";
+import { CouponWithValidity } from "../repositories/coupon.repository";
 
-interface CouponInfo extends Coupon {
-    is_valid: boolean;
-}
-
-interface CartValidationInfo {
-    userId: string;
-    subtotal: number;
-    productIds: string[];
-    userMembershipId: string;
-    isNewUser: boolean;
-}
+interface CouponInfo extends CouponWithValidity { }
 
 export class CouponService {
 
     /**
-     * Lấy tất cả coupon chưa bị xóa (có phân trang và tìm kiếm). (Admin/Management view)
+     * Admin get all coupon
      */
-    async getAllcoupon(uow: UnitOfWork, page: number, limit: number, search?: string): Promise<{ rows: Coupon[], count: number }> {
+    async getAllcoupon(uow: UnitOfWork, page: number, limit: number, search?: string) {
+
         const offset = (page - 1) * limit;
+
         let where: any = { is_deleted: false };
 
         if (search) {
-            where[Op.or] = [
-                { code: { [Op.iLike]: `%${search}%` } },
-            ];
+            where.code = { [Op.iLike]: `%${search}%` };
         }
 
-        return uow.coupon.findAndCountAll({
+        return uow.coupon.findAndCountAllWithValidity({
             where,
             limit,
             offset,
-            order: [['created_at', 'DESC']],
-            include: [{
-                model: ConditionSet, 
-                as: 'conditionSet', 
-                include: [{
-                    model: ConditionDetail,
-                    as: 'details'
-                }]
-            }]
+            order: [['created_at', 'DESC']]
         });
     }
 
     /**
-     * Lấy tất cả coupon mà User có thể thấy, bao gồm trạng thái hợp lệ. (User view)
+     * User get coupons
      */
-    async getAllCouponByUserId(uow: UnitOfWork, userId: string, userMembershipId: string): Promise<CouponInfo[]> {
-        const options: FindOptions<Coupon> = {
-            where: { is_deleted: false },
-            include: [{
-                model: ConditionSet, 
-                as: 'conditionSet', 
-                include: [{
-                    model: ConditionDetail,
-                    as: 'details',
-                    where: { is_deleted: false },
-                    required: false 
-                }]
-            }],
-            order: [['created_at', 'DESC']]
-        };
+    async getAllCouponByUserId(
+        uow: UnitOfWork,
+        userId: string,
+        userMembershipId: string
+    ): Promise<CouponInfo[]> {
 
-        // Sử dụng hàm mới findActiveCoupons từ Repository
-        const activeCoupons = await uow.coupon.findActiveCoupons(options);
-        
-        const now = new Date();
+        const activeCoupons = await uow.coupon.findActiveCoupons();
+
         const results: CouponInfo[] = [];
 
         for (const coupon of activeCoupons) {
-            const isValidTimeAndUsage = (
-                coupon.start_time <= now &&
-                coupon.end_time >= now &&
-                coupon.used_count < coupon.usage_limit
-            );
 
-            let isApplicableToUser = true;
+            let isValid = coupon.is_valid;
+
             const details = coupon.conditionSet?.details || [];
 
             for (const detail of details) {
-                switch (detail.condition_type as CouponConditionType) {
-                    case 'TIER':
-                        if (detail.condition_value !== userMembershipId) {
-                            isApplicableToUser = false;
+
+                if (detail.condition_type === 'TIER') {
+
+                    if (detail.condition_value !== userMembershipId) {
+                        isValid = false;
+                    }
+                }
+
+                if (detail.condition_type === 'NEW_USER') {
+
+                    if (detail.condition_value === 'true') {
+
+                        const isNewUser = await uow.users.isNewUser(userId);
+
+                        if (!isNewUser) {
+                            isValid = false;
                         }
-                        break;
-                    case 'NEW_USER':
-                        // Giả định uow.user.isNewUser(userId) tồn tại và trả về boolean
-                        if (detail.condition_value === 'true' && !await uow.users.isNewUser(userId)) {
-                            isApplicableToUser = false;
-                        }
-                        break;
-                    // Điều kiện thời gian lặp lại không cần kiểm tra ở đây, vì chúng chỉ giới hạn thời gian sử dụng, không giới hạn khả năng thấy coupon.
+                    }
                 }
             }
 
-            if (isApplicableToUser) {
-                 results.push({
-                    ...coupon.toJSON(),
-                    is_valid: isValidTimeAndUsage
-                } as CouponInfo);
-            }
+            results.push({
+                ...coupon,
+                is_valid: isValid
+            });
         }
-        
+
         return results;
-    }
-    
-    /**
-     * Lấy Coupon theo mã code. (Dùng nội bộ)
-     */
-    async getCouponByCode(uow: UnitOfWork, code: string): Promise<Coupon | null> {
-        return uow.coupon.findActiveCouponByCode(code); 
     }
 
     /**
-     * Tạo một Coupon mới cùng với các điều kiện liên quan.
+     * get coupon by code
+     */
+    async getCouponByCode(
+        uow: UnitOfWork,
+        code: string
+    ): Promise<CouponWithValidity | null> {
+
+        return uow.coupon.findActiveCouponByCode(code);
+    }
+
+    /**
+     * create coupon
      */
     async createCoupon(
-        uow: UnitOfWork, 
-        couponData: Partial<CouponCreationAttributes>, 
-        conditions: Array<Partial<ConditionDetail>> = []
-    ): Promise<Coupon> {
-        if (!couponData.code || !couponData.start_time || !couponData.end_time || couponData.value === undefined) {
-             throw new Error("Missing essential coupon data.");
-        }
-        if (new Date(couponData.start_time) >= new Date(couponData.end_time)) {
-             throw new Error("Start time must be before end time.");
-        }
+        uow: UnitOfWork,
+        couponData: Partial<CouponCreationAttributes>,
+        conditions: any[] = []
+    ) {
+
+        const existing = await uow.coupon.findOne({
+            where: { code: couponData.code, is_deleted: false }
+        });
+
+        if (existing) throw new Error("Coupon code already exists.");
 
         let conditionSetId = couponData.condition_set_id;
 
-        if (!conditionSetId && conditions.length > 0) {
-             const newSet = await uow.conditionSet.create({
-                 name: `Set for ${couponData.code}`,
-                 is_reusable: false,
-             });
-             conditionSetId = newSet.id;
+        if (!conditionSetId) {
 
-             const detailRecords = conditions.map(c => ({
-                 ...c,
-                 condition_set_id: newSet.id,
-                 is_deleted: false
-             }));
-             await uow.conditionDetail.bulkCreate(detailRecords);
-        } else if (!conditionSetId && conditions.length === 0) {
-             const newSet = await uow.conditionSet.create({
-                 name: `Set for ${couponData.code} (No Conditions)`,
-                 is_reusable: true,
-             });
-             conditionSetId = newSet.id;
+            const newSet = await uow.conditionSet.create({
+                name: `Set for ${couponData.code}`,
+                is_reusable: false
+            });
+
+            conditionSetId = newSet.id;
+
+            if (conditions.length > 0) {
+
+                await uow.conditionDetail.bulkCreate(
+                    conditions.map(c => ({
+                        ...c,
+                        condition_set_id: newSet.id,
+                        is_deleted: false
+                    }))
+                );
+            }
         }
 
-        const newCoupon = await uow.coupon.create({
+        return uow.coupon.create({
             ...couponData,
             condition_set_id: conditionSetId
         });
-
-        return newCoupon;
     }
 
     /**
-     * Kiểm tra và áp dụng Coupon vào giỏ hàng.
+     * update coupon
      */
-    async applyCoupon(uow: UnitOfWork, code: string, cartInfo: CartValidationInfo): Promise<{ discountAmount: number, coupon: Coupon }> {
-        const now = new Date();
-        
-        const coupon = await uow.coupon.findActiveCouponByCode(code); 
-        if (!coupon || !coupon.conditionSet) {
-             throw new Error("Coupon is invalid, expired, or not active.");
-        }
-        
-        if (coupon.used_count >= coupon.usage_limit) {
-             throw new Error("Coupon has reached its usage limit.");
+    async updateCoupon(
+        uow: UnitOfWork,
+        id: string,
+        updateData: Partial<CouponCreationAttributes>,
+        conditions?: any[]
+    ) {
+
+        const coupon = await uow.coupon.findById(id);
+
+        if (!coupon) throw new Error("Coupon not found.");
+
+        await uow.coupon.update(id, updateData);
+
+        if (conditions && coupon.condition_set_id) {
+
+            await uow.conditionDetail.updateByCondition(
+                { condition_set_id: coupon.condition_set_id },
+                { is_deleted: true }
+            );
+
+            await uow.conditionDetail.bulkCreate(
+                conditions.map(c => ({
+                    ...c,
+                    condition_set_id: coupon.condition_set_id,
+                    is_deleted: false
+                }))
+            );
         }
 
-        const details = coupon.conditionSet.details || []; 
-        
-        for (const detail of details) {
-            const type = detail.condition_type as CouponConditionType;
-            const value = detail.condition_value;
-            
-            switch (type) {
-                case 'MIN_ORDER_VALUE':
-                    if (cartInfo.subtotal < parseFloat(value)) {
-                         throw new Error(`Minimum order value of ${value} is required.`);
-                    }
-                    break;
-                case 'TIER':
-                    if (value !== cartInfo.userMembershipId) {
-                        throw new Error(`This coupon is only for ${value} members.`);
-                    }
-                    break;
-                case 'NEW_USER':
-                    if (value === 'true' && !cartInfo.isNewUser) {
-                         throw new Error(`This coupon is only for new users.`);
-                    }
-                    break;
-                case 'DAY_OF_WEEK':
-                    const currentDay = now.getDay(); 
-                    const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-                    const requiredDays = value.split(',').map(d => d.trim().toUpperCase());
-                    
-                    if (!requiredDays.includes(dayNames[currentDay])) {
-                         throw new Error(`Coupon is only valid on: ${value}.`);
-                    }
-                    break;
-                case 'HOUR_OF_DAY':
-                    const [startTimeStr, endTimeStr] = value.split('-');
-                    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                    
-                    const startMinutes = parseInt(startTimeStr.split(':')[0]) * 60 + parseInt(startTimeStr.split(':')[1] || '0');
-                    const endMinutes = parseInt(endTimeStr.split(':')[0]) * 60 + parseInt(endTimeStr.split(':')[1] || '0');
-                    
-                    if (currentMinutes < startMinutes || currentMinutes >= endMinutes) {
-                         throw new Error(`Coupon is only valid between ${startTimeStr} and ${endTimeStr}.`);
-                    }
-                    break;
+        return uow.coupon.findById(id);
+    }
+
+    /**
+     * delete coupon
+     */
+    async deleteCoupon(uow: UnitOfWork, id: string) {
+        return uow.coupon.softDelete(id);
+    }
+
+    /**
+     * apply coupon
+     */
+    async applyCoupon(uow: UnitOfWork, code: string, userId: string) {
+
+        const cart = await uow.cart.findActiveCartByUserId(userId);
+
+        if (!cart) throw new Error("Cart not found.");
+
+        const coupon = await uow.coupon.findActiveCouponByCode(code);
+
+        if (!coupon) throw new Error("Coupon invalid.");
+
+        if (!coupon.is_valid) throw new Error("Coupon is not valid.");
+
+        const cartItems = (cart as any).items || [];
+         console.log("cartItem", cartItems);
+
+        const subtotal = cartItems.reduce((acc: number, item: any) => {
+
+            const price = Number(item.total_price ?? 0);
+
+
+            const quantity = Number(item.quantity ?? 0);
+
+            if (isNaN(price) || isNaN(quantity)) {
+                console.log("Invalid cart item:", item);
+                return acc;
             }
-        }
-        
-        let discount = 0;
+
+            return acc + price * quantity;
+
+        }, 0);
+        console.log("sub",subtotal)
+        if (subtotal === 0) throw new Error("Cart empty.");
+
+        const success = await uow.coupon.incrementUsedCount(coupon.id);
+
+        if (!success) throw new Error("Coupon usage limit reached.");
+
+        let discountAmount = 0;
+
         if (coupon.type === 'PERCENT') {
-            discount = cartInfo.subtotal * (coupon.value / 100);
-            if (coupon.max_discount && discount > coupon.max_discount) {
-                discount = coupon.max_discount;
+
+            discountAmount = subtotal * (coupon.value / 100);
+
+
+            if (coupon.max_discount && discountAmount > coupon.max_discount) {
+                discountAmount = Number(coupon.max_discount);
             }
+
         } else if (coupon.type === 'FIXED') {
-            discount = coupon.value;
+
+            discountAmount = Number(coupon.value);
+   
+
         }
 
-        // Tăng số lần sử dụng của coupon
-        const incrementSuccess = await uow.coupon.incrementUsedCount(coupon.id);
-        
-        if (!incrementSuccess) {
-            throw new Error("Failed to update coupon usage count.");
-        }
+        discountAmount = Math.min(discountAmount || 0, subtotal || 0);
+ 
 
-        return { discountAmount: discount, coupon };
+        return {
+            couponCode: coupon.code,
+            subtotal,
+            discountAmount,
+            finalAmount: subtotal - discountAmount
+        };
     }
 }

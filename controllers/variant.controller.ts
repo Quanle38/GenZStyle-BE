@@ -19,7 +19,7 @@ const variantController = {
                 totalVariant: count,
                 data: rows,
             });
-        } catch (error) { return handleError(res, 500, error); }
+        } catch (error) { return handleError(res, 500, "error"); }
     },
 
     getById: async (req: Request<{ id: string }>, res: Response) => {
@@ -29,7 +29,7 @@ const variantController = {
             const variant = await variantService.getById(uow, id);
             if (!variant) return handleError(res, 404, "Variant not found");
             return res.status(200).json({ data: variant });
-        } catch (error) { return handleError(res, 500, error); }
+        } catch (error) { return handleError(res, 500, 'error'); }
     },
 
     create: async (req: Request, res: Response) => {
@@ -37,7 +37,7 @@ const variantController = {
         try {
             const newVariant = await variantService.create(uow, req.body);
             return res.status(201).json({ data: newVariant });
-        } catch (error) { return handleError(res, 500, error); }
+        } catch (error) { return handleError(res, 500, "error"); }
     },
 
     autoImportVariant: async (req: Request, res: Response) => {
@@ -45,7 +45,7 @@ const variantController = {
         try {
             const result = await variantService.autoImportVariant(uow, req.body);
             return res.status(200).json({ data: result });
-        } catch (error) { return handleError(res, 500, error); }
+        } catch (error) { return handleError(res, 500, "error"); }
     },
 
     deleteOne: async (req: Request<{ id: string }>, res: Response) => {
@@ -55,7 +55,7 @@ const variantController = {
             const result = await variantService.deleteOne(uow, id);
             if (!result) return handleError(res, 404, "Variant not found");
             return res.status(204).send();
-        } catch (error) { return handleError(res, 500, error); }
+        } catch (error) { return handleError(res, 500, "error"); }
     },
 
     update: async (req: Request<{ id: string }>, res: Response) => {
@@ -69,7 +69,7 @@ const variantController = {
             if (result === "FAILED") return handleError(res, 400, "Update failed");
 
             return res.status(200).json({ data: result });
-        } catch (error) { return handleError(res, 500, error); }
+        } catch (error) { return handleError(res, 500, "error"); }
     },
 };
 

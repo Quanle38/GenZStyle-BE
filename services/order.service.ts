@@ -2,11 +2,12 @@
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { Order, OrderAttributes } from "../models/order.model";
 import { OrderItem } from "../models/orderItem.model";
-import { OrderStatus } from "../enums/order";
+import { OrderMethod, OrderStatus } from "../enums/order";
 
 export interface CreateOrderData {
     user_id: string;
     cart_id?: string | null;
+    method: OrderMethod
     items: Array<{
         variant_id: string;
         quantity: number;
@@ -27,6 +28,7 @@ export class OrderService {
      * Lấy chi tiết một đơn hàng
      */
     async getOrderById(uow: UnitOfWork, orderId: string): Promise<Order | null> {
+      
         return uow.order.findById(orderId);
     }
 
@@ -53,7 +55,8 @@ export class OrderService {
             user_id: orderData.user_id,
             cart_id: orderData.cart_id || null,
             quantity: totalQuantity,
-            total_price: totalPrice
+            total_price: totalPrice,
+            method: orderData.method
         };
 
         const createdOrder = await uow.order.create(newOrder);
@@ -84,8 +87,8 @@ export class OrderService {
      * Cập nhật trạng thái đơn hàng
      */
     async updateOrderStatus(
-        uow: UnitOfWork, 
-        orderId: string, 
+        uow: UnitOfWork,
+        orderId: string,
         newStatus: string
     ): Promise<Order> {
         // Kiểm tra đơn hàng tồn tại và thuộc về user
@@ -143,12 +146,12 @@ export class OrderService {
         ordersByStatus: Record<string, number>;
     }> {
         const orders = await uow.order.findByUserId(userId);
-        
+
         const totalOrders = orders.length;
         const totalSpent = orders
             .filter(o => ["completed", "delivered"].includes(o.status))
             .reduce((sum, order) => sum + order.total_price, 0);
-        
+
         const ordersByStatus = orders.reduce((acc, order) => {
             acc[order.status] = (acc[order.status] || 0) + 1;
             return acc;

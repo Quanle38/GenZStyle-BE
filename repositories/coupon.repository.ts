@@ -1,77 +1,153 @@
-// repositories/coupon.repository.ts
-import { Op, FindOptions } from "sequelize";
+import { Op, FindOptions, col } from "sequelize";
 import { BaseRepository } from "./baseRepository";
-import { Coupon } from "../models/coupon.model"; 
-import { ConditionSet } from "../models/conditionSets.model"; // Đã sửa import path
-import { ConditionDetail } from "../models/conditionDetail.model"; // Đã sửa import path
+import { Coupon, CouponAttributes } from "../models/coupon.model";
+import { ConditionSet } from "../models/conditionSets.model";
+import { ConditionDetail } from "../models/conditionDetail.model";
+
+export type CouponWithValidity = CouponAttributes & {
+    is_valid: boolean;
+    conditionSet?: ConditionSet;
+};
+
 
 export class CouponRepository extends BaseRepository<Coupon> {
-    protected model = Coupon; 
+    protected model = Coupon;
 
     /**
-     * Tìm coupon theo mã code và kiểm tra trạng thái hoạt động/hết hạn.
-     * Đồng thời, lấy tất cả ConditionDetails thông qua ConditionSet.
+     * Compute coupon validity
      */
-    async findActiveCouponByCode(code: string): Promise<Coupon | null> {
+    private computeIsValid(coupon: Coupon): boolean {
+
         const now = new Date();
-        
-        return this.findOne({
-            where: {
-                code,
-                is_deleted: false,
-                start_time: { [Op.lte]: now }, 
-                end_time: { [Op.gte]: now }, 
-            },
-            include: [{
-                model: ConditionSet, 
-                as: 'conditionSet', 
-                required: true,
-                include: [{
-                    model: ConditionDetail,
-                    as: 'details', 
-                    where: { is_deleted: false },
-                    required: false // LEFT JOIN, vì coupon vẫn hợp lệ nếu không có detail nào
-                }]
-            }],
-        });
-    }
 
-    /**
-     * Lấy tất cả coupon đang hoạt động, có thể áp dụng các tùy chọn tìm kiếm khác.
-     */
-    async findActiveCoupons(options?: FindOptions<Coupon>): Promise<Coupon[]> {
-        const now = new Date();
-        
-        return this.findAll({
-            where: {
-                start_time: { [Op.lte]: now }, 
-                end_time: { [Op.gte]: now }, 
-                is_deleted: false,
-                ...(options?.where || {}) 
-            },
-            ...options
-        });
-    }
+        if (coupon.start_time && coupon.start_time > now) return false;
+        if (coupon.end_time && coupon.end_time < now) return false;
 
-    /**
-     * Tăng số lần sử dụng của coupon một cách nguyên tử (atomic).
-     */
-    async incrementUsedCount(couponId: string): Promise<boolean> {
-        if (!this.model) {
+        if (coupon.usage_limit !== null && coupon.used_count >= coupon.usage_limit) {
             return false;
         }
 
+        return true;
+    }
+
+    /**
+     * Find coupon by code + is_valid
+     */
+    async findActiveCouponByCode(code: string): Promise<CouponWithValidity | null> {
+
+        const coupon = await super.findOne({
+            where: {
+                code,
+                is_deleted: false
+            },
+            include: [{
+                model: ConditionSet,
+                as: 'conditionSet',
+                required: false,
+                include: [{
+                    model: ConditionDetail,
+                    as: 'details',
+                    where: { is_deleted: false },
+                    required: false
+                }]
+            }]
+        });
+
+        if (!coupon) return null;
+
+        return {
+            ...(coupon.toJSON()),
+            is_valid: this.computeIsValid(coupon)
+        };
+    }
+
+    /**
+     * Find active coupons + is_valid
+     */
+    async findActiveCoupons(options?: FindOptions<Coupon>): Promise<CouponWithValidity[]> {
+
+        const now = new Date();
+
+        const coupons = await super.findAll({
+            where: {
+                start_time: { [Op.lte]: now },
+                end_time: { [Op.gte]: now },
+                is_deleted: false,
+                ...(options?.where || {})
+            },
+            include: [{
+                model: ConditionSet,
+                as: 'conditionSet',
+                required: false,
+                include: [{
+                    model: ConditionDetail,
+                    as: 'details',
+                    where: { is_deleted: false },
+                    required: false
+                }]
+            }],
+            ...options
+        });
+
+        return coupons.map(coupon => ({
+            ...(coupon.toJSON()),
+            is_valid: this.computeIsValid(coupon)
+        }));
+    }
+
+    /**
+     * Find all coupon + is_valid
+     */
+    async findAllWithValidity(options?: Omit<FindOptions, 'transaction'>): Promise<CouponWithValidity[]> {
+
+        const coupons = await super.findAll(options);
+
+        return coupons.map(coupon => ({
+            ...(coupon.toJSON()),
+            is_valid: this.computeIsValid(coupon)
+        }));
+    }
+
+    /**
+     * Find and count coupon + is_valid
+     */
+    async findAndCountAllWithValidity(
+        options?: Omit<FindOptions, 'transaction'>
+    ): Promise<{ rows: CouponWithValidity[]; count: number }> {
+
+        const result = await super.findAndCountAll(options);
+
+        return {
+            count: result.count,
+            rows: result.rows.map(coupon => ({
+                ...(coupon.toJSON()),
+                is_valid: this.computeIsValid(coupon)
+            }))
+        };
+    }
+
+    /**
+     * Atomic increment usage
+     */
+    async incrementUsedCount(couponId: string): Promise<boolean> {
+
         try {
-            await this.model.increment(
-                'used_count',
-                {
-                    by: 1,
-                    where: { id: couponId },
-                    ...this.getTransactionOption() 
-                }
-            );
-            return true;
+
+            const result = await this.model.increment('used_count', {
+                by: 1,
+                where: {
+                    id: couponId,
+                    used_count: { [Op.lt]: col('usage_limit') }
+                },
+                ...this.getTransactionOption()
+            }) as any;
+
+            const affectedRows = result?.[0]?.[1] || result?.[1] || 0;
+
+            return affectedRows > 0;
+
         } catch (error) {
+
             console.error("Error incrementing used count:", error);
             return false;
         }

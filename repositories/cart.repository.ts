@@ -2,20 +2,16 @@
 import { BaseRepository } from "./baseRepository"
 import { Cart } from "../models/cart.model";
 import { CartItem, Product, ProductVariant } from "../models";
+import { CartCoupon } from "../models/cartCoupon.model";
+import { Coupon } from "../models/coupon.model";
 import { Op, Sequelize } from "sequelize";
 
 export class CartRepository extends BaseRepository<Cart> {
     protected model = Cart;
 
-    /**
-     * Tìm giỏ hàng (hiện tại) của người dùng, bao gồm cả các mặt hàng.
-     */
-    // repositories/cart.repository.ts
     async findActiveCartByUserId(userId: string): Promise<Cart | null> {
         return this.model.findOne({
-            where: {
-                user_id: userId
-            },
+            where: { user_id: userId },
             include: [
                 {
                     model: CartItem,
@@ -34,21 +30,29 @@ export class CartRepository extends BaseRepository<Cart> {
                         {
                             model: ProductVariant,
                             as: 'variant',
-                            attributes: [
-                                'id',
-                                'product_id',
-                                'size',
-                                'color',
-                                'price',
-                                'stock',
-                                'image'
-                            ],
+                            attributes: ['id', 'product_id', 'size', 'color', 'price', 'stock', 'image'],
                             include: [
                                 {
                                     model: Product,
                                     as: 'product',
                                     attributes: []
                                 }
+                            ]
+                        }
+                    ]
+                },
+                // ✅ THÊM MỚI: include CartCoupon kèm Coupon
+                {
+                    model: CartCoupon,
+                    as: 'cartCoupons',
+                    required: false,
+                    include: [
+                        {
+                            model: Coupon,
+                            as: 'coupon',
+                            attributes: [
+                                'id', 'code', 'type', 'value',
+                                'max_discount', 'start_time', 'end_time'
                             ]
                         }
                     ]
@@ -59,10 +63,6 @@ export class CartRepository extends BaseRepository<Cart> {
         });
     }
 
-
-    /**
-     * Tạo một giỏ hàng mới cho người dùng.
-     */
     async createNewCart(userId: string): Promise<Cart> {
         return this.create({ user_id: userId });
     }
@@ -85,7 +85,4 @@ export class CartRepository extends BaseRepository<Cart> {
             total_price: Number(result?.total_price ?? 0)
         };
     }
-
-
-    // Giả định BaseRepository có hàm delete(id: string | number)
 }

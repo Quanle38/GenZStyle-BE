@@ -15,7 +15,7 @@ const cartController = {
     getCart: async (req: Request, res: Response) => {
         const uow = new UnitOfWork();
         try {
-            const user: User = req.user;
+            const user: any  = req.user;
             if (!user || !user.id) {
                 return handleError(res, 401, "User not authenticated.");
             }
@@ -41,7 +41,7 @@ const cartController = {
     addItem: async (req: Request, res: Response) => {
         const uow = new UnitOfWork();
         try {
-            const user: User = req.user;
+            const user: any  = req.user;
             if (!user || !user.id) {
                 return handleError(res, 401, "User not authenticated.");
             }
@@ -91,7 +91,7 @@ const cartController = {
     removeItem: async (req: Request, res: Response) => {
         const uow = new UnitOfWork();
         try {
-            const user: User = req.user;
+            const user: any  = req.user;
             if (!user || !user.id) {
                 return handleError(res, 401, "User not authenticated.");
             }
@@ -130,7 +130,7 @@ const cartController = {
     clearCart: async (req: Request, res: Response) => {
         const uow = new UnitOfWork();
         try {
-            const user: User = req.user;
+            const user: any = req.user;
             if (!user || !user.id) {
                 return handleError(res, 401, "User not authenticated.");
             }

@@ -3,8 +3,9 @@ import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { Cart } from "../models/cart.model";
 import { CartItem } from "../models/cartItem.model";
 import { ProductVariant } from "../models/productVariant.model";
+import { CartCouponService } from "./cartCoupon.service";
 
-
+const cartCouponService = new CartCouponService();
 export class CartService {
 
     /**
@@ -15,25 +16,34 @@ export class CartService {
      * @returns Giỏ hàng (Cart)
      */
     // services/cart.service.ts
-    async getOrCreateCart(uow: UnitOfWork, userId: string): Promise<Cart> {
+      async getOrCreateCart(uow: UnitOfWork, userId: string): Promise<Cart> {
         let cart = await uow.cart.findActiveCartByUserId(userId);
 
         if (!cart) {
             await uow.cart.createNewCart(userId);
-
             const loadedCart = await uow.cart.findActiveCartByUserId(userId);
-            if (!loadedCart) {
-                throw new Error("Failed to load newly created cart.");
-            }
+            if (!loadedCart) throw new Error("Failed to load newly created cart.");
             cart = loadedCart;
         }
 
-        // 🔥 SYNC SUMMARY (QUAN TRỌNG)
+        // Sync summary (amount + total_price gốc)
         const summary = await this.syncCartSummary(uow, cart.id);
         cart.amount = summary.amount;
         cart.total_price = summary.total_price;
 
-        // ===== attach variants như bạn đang làm =====
+        // ✅ Tính discount từ cartCoupons đã được include sẵn
+        const appliedCoupons = (cart as any).cartCoupons ?? [];
+        const { discount_amount, coupon_details } = cartCouponService.calculateDiscount(
+            summary.total_price,
+            appliedCoupons
+        );
+
+        // ✅ Gắn thêm vào cart trả về (không lưu DB, chỉ trả về cho client)
+        cart.setDataValue('discount_amount', discount_amount);
+        cart.setDataValue('total_after_discount', summary.total_price - discount_amount);
+        cart.setDataValue('coupon_details', coupon_details);
+
+        // Attach variants như cũ
         if (cart.items && cart.items.length > 0) {
             const productIds = [...new Set(cart.items.map(i => i.variant!.product_id))];
 
@@ -44,17 +54,12 @@ export class CartService {
 
             const variantMap = new Map<string, ProductVariant[]>();
             for (const v of allVariants) {
-                if (!variantMap.has(v.product_id)) {
-                    variantMap.set(v.product_id, []);
-                }
+                if (!variantMap.has(v.product_id)) variantMap.set(v.product_id, []);
                 variantMap.get(v.product_id)!.push(v);
             }
 
             for (const item of cart.items) {
-                item.setDataValue(
-                    'variants',
-                    variantMap.get(item.variant!.product_id) || []
-                );
+                item.setDataValue('variants', variantMap.get(item.variant!.product_id) || []);
             }
         }
 

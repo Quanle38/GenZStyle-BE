@@ -20,7 +20,7 @@ export class UserService {
     }
 
     async update(uow: UnitOfWork, id: string, data: UpdateRequestBodyUser) {
-        const existingUser : User | null = await uow.users.findById(id);
+        const existingUser: User | null = await uow.users.findById(id);
         if (!existingUser) return null;
         const [affectedCount] = await uow.users.update(id, {
             ...existingUser,
@@ -35,6 +35,7 @@ export class UserService {
     }
 
     async deleteOne(uow: UnitOfWork, id: string) {
+
         const user = await uow.users.findById(id);
         if (!user) return "NOT_FOUND";
 
@@ -45,6 +46,7 @@ export class UserService {
         await uow.users.softDelete(id);
 
         const addresses = await uow.userAddresses.findByUserId(id);
+
         if (addresses.length > 0) {
             const addressIds = addresses.map(addr => addr.address_id);
             await uow.userAddresses.bulkDelete(addressIds);
@@ -53,10 +55,10 @@ export class UserService {
         return "SUCCESS";
     }
 
-   async create(uow: UnitOfWork, payload: CreateRequestBodyUser) {
+    async create(uow: UnitOfWork, payload: CreateRequestBodyUser) {
         // ✅ Validate input
-        if (!payload.email || !payload.password || !payload.first_name || 
-            !payload.last_name || !payload.address || !payload.phone_number || 
+        if (!payload.email || !payload.password || !payload.first_name ||
+            !payload.last_name || !payload.address || !payload.phone_number ||
             !payload.dob || !payload.gender || !payload.membership_id) {
             throw { status: 400, message: "Missing required fields" };
         }
@@ -66,8 +68,6 @@ export class UserService {
         if (existingUser) {
             throw { status: 400, message: "Email already exists" };
         }
-
-        await uow.start(); // ✅ Bắt đầu transaction
 
         try {
             // ✅ Destructure và chuẩn bị dữ liệu
@@ -91,9 +91,7 @@ export class UserService {
 
             // ✅ Tạo user
             const createdUser = await uow.users.create(newUser);
-
             console.log("User created with ID:", createdUser.id);
-
             // ✅ Tạo address
             await uow.userAddresses.create({
                 user_id: createdUser.id,
@@ -102,23 +100,17 @@ export class UserService {
                 label: "Home",
                 is_deleted: false,
             });
-
             console.log("Address created successfully");
-
-            await uow.commit(); // ✅ Commit transaction
 
             // ✅ Lấy user với addresses (exclude sensitive fields)
             const result = await uow.users.findByIdWithAddresses(
                 createdUser.id,
                 ATTRIBUTES_TO_EXCLUDE
             );
-
             return result;
-
         } catch (error) {
-            await uow.rollback(); // ✅ Rollback nếu có lỗi
             console.error("Error creating user:", error);
-            
+
             if (error instanceof Error) {
                 throw { status: 400, message: error.message, details: error };
             }

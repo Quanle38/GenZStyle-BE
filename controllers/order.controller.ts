@@ -141,7 +141,8 @@ export class OrderController {
             const orderData: CreateOrderData = {
                 user_id: userId,
                 cart_id: req.body.cart_id || null,
-                items: req.body.items
+                items: req.body.items,
+                method: req.body.method
             };
 
             if (!orderData.items || orderData.items.length === 0) {
@@ -194,7 +195,7 @@ export class OrderController {
                 return;
             }
 
-            const order = await this.orderService.updateOrderStatus(uow, id, userId);
+            const order = await this.orderService.updateOrderStatus(uow, id, status);
             await uow.commit();
 
             res.status(200).json({

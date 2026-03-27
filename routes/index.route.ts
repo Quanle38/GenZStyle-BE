@@ -7,9 +7,12 @@ import couponRouter from "./coupon.route";
 import favoriteRouter from "./favorite.route";
 import membershipRouter from "./membership.route";
 import cartRouter from "./cart.route";
-import orderRouter from "./oder.route";
+import orderRouter from "./order.route";
 import paymentRouter from "./payment.route";
 import userAddressRouter from "./address.route";
+import conditionSetRouter from "./conditionSet.route";
+
+
 
 const routeAPI = (app: Express) => {
   app.use("/api/v1/user", userRouter)
@@ -23,6 +26,8 @@ const routeAPI = (app: Express) => {
   app.use("/api/v1/order", orderRouter)
   app.use("/api/v1/payment", paymentRouter)
   app.use("/api/v1/user-address", userAddressRouter);
+  app.use("/api/v1/condition-set",conditionSetRouter );
+  
 }
 
 export default routeAPI;

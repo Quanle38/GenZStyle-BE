@@ -4,27 +4,66 @@ import { checkRole } from "../middleware/role.middleware";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { ROLE } from "../enums/role.enum";
 
-// Khởi tạo Router
 const couponRouter = Router();
 
-// --- 1. ADMIN/MANAGEMENT ROUTES (GET) ---
-// Lấy tất cả coupon (có phân trang, tìm kiếm)
-couponRouter.get("/",authMiddleware,checkRole([ROLE.ADMIN, ROLE.USER]), couponController.getAllCoupons);
+// --- 1. ADMIN/MANAGEMENT ROUTES (Quản lý Coupon) ---
 
-// --- 2. USER VIEW ROUTES (GET) ---
-// Lấy tất cả coupon khả dụng cho một user (Yêu cầu userId)
-// Thường là GET /api/coupons/available hoặc GET /api/coupons/user
-couponRouter.get("/get-all-by-user-id",authMiddleware,checkRole([ROLE.ADMIN, ROLE.USER]), couponController.getAllCouponByUserId);
+// Lấy tất cả coupon (Dành cho Admin/Manager quản lý hệ thống)
+couponRouter.get(
+    "/", 
+    authMiddleware, 
+    checkRole([ROLE.ADMIN]), 
+    couponController.getAllCoupons
+);
 
-// Lấy thông tin coupon theo mã code (Dùng để hiển thị chi tiết)
-couponRouter.get("/get-by-code", couponController.getCouponByCode);
+// Tạo coupon mới
+couponRouter.post(
+    "/create", 
+    authMiddleware, 
+    checkRole([ROLE.ADMIN]), 
+    couponController.createCoupon
+);
 
-// --- 3. MUTATION ROUTES (POST) ---
-// Tạo coupon mới (Cần authentication và authorization cho Admin)
-couponRouter.post("/create", couponController.createCoupon);
+// Cập nhật thông tin Coupon và Điều kiện đi kèm
+couponRouter.put(
+    "/update/:id", 
+    authMiddleware, 
+    checkRole([ROLE.ADMIN]), 
+    couponController.updateCoupon
+);
 
-// Áp dụng coupon vào giỏ hàng (Cần authentication của User)
-// Route này chạy logic validation và tăng count trong transaction
-couponRouter.post("/apply-coupon", couponController.applyCoupon);
+// Xóa Coupon (Soft Delete)
+couponRouter.delete(
+    "/delete/:id", 
+    authMiddleware, 
+    checkRole([ROLE.ADMIN]), 
+    couponController.deleteCoupon
+);
+
+
+// --- 2. USER ROUTES (Dành cho khách hàng) ---
+
+// Lấy tất cả coupon khả dụng cho user (để hiển thị trong ví voucher/giỏ hàng)
+couponRouter.get(
+    "/get-all-by-user-id", 
+    authMiddleware, 
+    checkRole([ROLE.USER, ROLE.ADMIN]), 
+    couponController.getAllCouponByUserId
+);
+
+// Lấy thông tin chi tiết của 1 coupon qua mã code (Ví dụ: để kiểm tra trước khi nhập)
+couponRouter.get(
+    "/get-by-code/:code", 
+    authMiddleware, 
+    couponController.getCouponByCode
+);
+
+// Áp dụng coupon vào đơn hàng (Tính toán giảm giá và trừ lượt dùng)
+couponRouter.post(
+    "/apply-coupon", 
+    authMiddleware, 
+    checkRole([ROLE.USER, ROLE.ADMIN]), 
+    couponController.applyCoupon
+);
 
 export default couponRouter;

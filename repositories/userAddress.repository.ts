@@ -161,4 +161,17 @@ export class UserAddressRepository extends BaseRepository<UserAddress> {
             },
         });
     }
+
+    /**
+        * Xóa tất cả địa chỉ của 1 User
+        */
+    async bulkDelete(addressIds: number[]) {
+        return this.model.destroy({
+            where: {
+                address_id: {
+                    [Op.in]: addressIds
+                }
+            }
+        });
+    }
 }

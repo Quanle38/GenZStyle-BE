@@ -18,6 +18,7 @@ import { ConditionDetailRepository } from "../repositories/conditionDetail.repos
 import { OrderRepository } from "../repositories/order.repository";
 import { OrderItemRepository } from "../repositories/orderItem.repositpry";
 import { PaymentRepository } from "../repositories/payment.repository";
+import { CartCouponRepository } from "../repositories/cartCoupon.repository";
 
 export class UnitOfWork {
     private transaction: Transaction | null = null;
@@ -40,6 +41,7 @@ export class UnitOfWork {
     order : OrderRepository;
     orderItem : OrderItemRepository;
     payment : PaymentRepository;
+    cartCoupon : CartCouponRepository;
     
     constructor() {
         this.users = new UserRepository();
@@ -59,6 +61,7 @@ export class UnitOfWork {
         this.order = new OrderRepository();
         this.orderItem = new OrderItemRepository();
         this.payment = new PaymentRepository();
+        this.cartCoupon = new CartCouponRepository();
     }
 
     /**
@@ -85,7 +88,7 @@ export class UnitOfWork {
         this.order.setTransaction(this.transaction);
         this.orderItem.setTransaction(this.transaction);
         this.payment.setTransaction(this.transaction);
-
+        this.cartCoupon.setTransaction(this.transaction);
     }
 
     /**

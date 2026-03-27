@@ -21,6 +21,15 @@ export class ConditionSetRepository extends BaseRepository<ConditionSet> {
             }]
         });
     }
+    async findAllWithPagination(page: number, limit: number) {
+        const offset = (page - 1) * limit;
+        return this.model.findAndCountAll({
+            limit,
+            offset,
+            order: [["created_at", "DESC"]],
+            transaction: this.transaction,
+        });
+    }
 
     // Thêm các hàm tìm kiếm/tạo/cập nhật tùy chỉnh khác nếu cần
 }

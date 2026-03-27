@@ -53,19 +53,30 @@ const userController = {
   // ===== CREATE =====
   create: async (req: Request, res: Response) => {
     const uow = new UnitOfWork();
+
     try {
       await uow.start();
 
       const user = await userService.create(uow, req.body);
 
       await uow.commit();
+
       return handleResponse(res, 201, {
         message: "User created successfully",
         data: user
       });
-    } catch {
+
+    } catch (error: any) {
+
       await uow.rollback();
-      return handleError(res, 500, "Create user failed");
+
+      console.error("Create user error:", error);
+
+      return handleError(
+        res,
+        error.status || 500,
+        error.message || "Create user failed"
+      );
     }
   },
 
@@ -106,6 +117,7 @@ const userController = {
   // ===== DELETE =====
   deleteOne: async (req: Request<{ id: string }>, res: Response) => {
     const uow = new UnitOfWork();
+
     try {
       await uow.start();
 
@@ -123,12 +135,18 @@ const userController = {
       }
 
       await uow.commit();
+
       return handleResponse(res, 200, {
         message: "User deleted successfully",
         data: null
       });
-    } catch {
+
+    } catch (error) {
+
       await uow.rollback();
+
+      console.error("Delete user error:", error);
+
       return handleError(res, 500, "Delete user failed");
     }
   }

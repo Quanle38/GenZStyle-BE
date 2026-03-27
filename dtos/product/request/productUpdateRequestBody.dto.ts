@@ -1,4 +1,4 @@
-import { VariantCreateRequestBody } from "../../variant/request/variantCreateRequestBody.dto";
+
 
 export interface ProductUpdateRequestBody {
         name?:  string;
