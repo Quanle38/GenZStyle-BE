@@ -11,7 +11,9 @@ import orderRouter from "./order.route";
 import paymentRouter from "./payment.route";
 import userAddressRouter from "./address.route";
 import conditionSetRouter from "./conditionSet.route";
-
+import historyRoutes from "./history.route";
+import webhookRoutes from "./webhook.route";
+import reportRouter from "./report.route";
 
 
 const routeAPI = (app: Express) => {
@@ -27,6 +29,11 @@ const routeAPI = (app: Express) => {
   app.use("/api/v1/payment", paymentRouter)
   app.use("/api/v1/user-address", userAddressRouter);
   app.use("/api/v1/condition-set",conditionSetRouter );
+  app.use("/api/v1/history",historyRoutes);
+  app.use("/api/v1/webhook",webhookRoutes);
+  app.use("/api/v1/report",reportRouter);
+
+
   
 }
 

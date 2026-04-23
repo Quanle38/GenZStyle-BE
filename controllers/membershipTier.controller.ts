@@ -16,7 +16,7 @@ const membershipTierController = {
             const tiers = await membershipTierService.getAll(uow);
             return res.status(200).json({ data: tiers });
         } catch (error) {
-            return handleError(res, 500, error);
+            return handleError(res, 500, error as any);
         }
     },
 
@@ -32,7 +32,7 @@ const membershipTierController = {
 
             return res.status(200).json({ data: tier });
         } catch (error) {
-            return handleError(res, 404, error);
+            return handleError(res, 404, error as any);
         }
     },
 
@@ -50,7 +50,7 @@ const membershipTierController = {
             });
         } catch (error) {
             if (uow.isTransactionActive()) await uow.rollback();
-            return handleError(res, 400, error);
+            return handleError(res, 400, error as any);
         }
     },
 
@@ -71,7 +71,7 @@ const membershipTierController = {
             return res.status(200).json({ success: true, data: result });
         } catch (error) {
             if (uow.isTransactionActive()) await uow.rollback();
-            return handleError(res, 400, error);
+            return handleError(res, 400, error as any);
         }
     },
 
@@ -92,7 +92,7 @@ const membershipTierController = {
             return res.status(204).send();
         } catch (error) {
             if (uow.isTransactionActive()) await uow.rollback();
-            return handleError(res, 404, error);
+            return handleError(res, 404, error as any);
         }
     }
 };

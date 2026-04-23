@@ -4,7 +4,6 @@ import { UpdatePaymentPayload } from "../dtos/payment/request/updatePaymentPaylo
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { Payment } from "../models/payment.model";
 import { TransactionStatus } from "../enums/transaction";
-import axios from "axios";
 import { generateIdByFormat } from "../helpers/generateId";
 
 
@@ -15,15 +14,20 @@ export class PaymentService {
     async createPayment(
         uow: UnitOfWork,
         body: CreatePaymentPayload
-    ): Promise<string> {
+    ): Promise<any> {
         const bank = process.env.BANK;
         const account = process.env.ACCOUNT;
-        body.status = TransactionStatus.Pending;
-        console.log(body)
-        const create = await uow.payment.createPayment({...body,type : "in"});
-        const id =   generateIdByFormat("PM",6, create.id);
+        console.log("checkPM")
+        const create = await uow.payment.createPayment({ amount: body.amount, type: "in", order_id: body.orderId, content: body.description });
+        const id = generateIdByFormat("OD", 6, create.id);
         const linkQR = `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${body.amount}&des=${id}&template=compact&download=false`
-        return linkQR;
+        return {
+            orderCode: id,
+            createdAt: new Date().toISOString(),
+            description: body.description || "",
+            status: "pending",
+            qrURL: linkQR
+        };
     }
 
     /**
@@ -34,13 +38,13 @@ export class PaymentService {
         paymentId: number
     ): Promise<Payment | null> {
         return await uow.payment.findByIdWithDetails(paymentId);
-    } 
+    }
     /**
      * Lấy thông tin chi tiết một giao dịch thanh toán
      */
     async checkDuplicatePayment(
         uow: UnitOfWork,
-            referenceCode : string
+        referenceCode: string
     ): Promise<Payment | null> {
         return await uow.payment.checkDuplicatePayment(referenceCode);
     }
@@ -94,14 +98,12 @@ export class PaymentService {
         status: string,
         referenceNumber?: string
     ): Promise<Payment | null> {
-        // Kiểm tra giao dịch có tồn tại không
         const payment = await uow.payment.findById(paymentId);
         if (!payment) {
             throw new Error(`Payment with ID ${paymentId} not found`);
         }
 
-        // Cập nhật trạng thái
-        const [affectedCount, updatedPayments] = await uow.payment.updateStatus(
+        const [affectedCount] = await uow.payment.updateStatus(
             paymentId,
             status,
             referenceNumber
@@ -111,7 +113,8 @@ export class PaymentService {
             throw new Error(`Failed to update payment status`);
         }
 
-        return updatedPayments[0] || null;
+        // ✅ Find lại sau khi update thay vì dùng returned rows
+        return await uow.payment.findById(paymentId);
     }
 
     /**
@@ -442,6 +445,6 @@ export class PaymentService {
         await uow.payment.delete(paymentId);
     }
 
-    
+
 
 }

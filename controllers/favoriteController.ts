@@ -30,7 +30,7 @@ const favoriteController = {
                 data: favorites,
             });
         } catch (error) {
-            return handleError(res, 500, error);
+            return handleError(res, 500, error as any);
         }
     },
     getAllByUserId: async (req: Request, res: Response) => {
@@ -52,7 +52,7 @@ const favoriteController = {
                 data: favorites,
             });
         } catch (error) {
-            return handleError(res, 500, error);
+            return handleError(res, 500, error as any);
         }
     },
     /**
@@ -99,17 +99,17 @@ const favoriteController = {
     },
     sendEmail: async (req: Request, res: Response) => {
         try {
-           await emailService.sendMail(
-            "leq85151@gmail.com","Hello","<h1>UUIIAA</h1>"
-           )
+            await emailService.sendMail(
+                "leq85151@gmail.com", "Hello", "<h1>UUIIAA</h1>"
+            )
             return res.status(200).json({
                 success: true,
             });
         } catch (error) {
-            return handleError(res, 500, error);
+            return handleError(res, 500, error as any); 
         }
     },
-    
+
 };
 
 export default favoriteController;

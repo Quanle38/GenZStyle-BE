@@ -28,7 +28,7 @@ export class OrderService {
      * Lấy chi tiết một đơn hàng
      */
     async getOrderById(uow: UnitOfWork, orderId: string): Promise<Order | null> {
-      
+
         return uow.order.findById(orderId);
     }
 
@@ -98,8 +98,8 @@ export class OrderService {
         }
 
         // Kiểm tra trạng thái hợp lệ
-        const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
-        if (!validStatuses.includes(newStatus)) {
+        const validStatuses = ["pending", "completed","cancelled"];
+        if (!validStatuses.includes(newStatus.toLocaleLowerCase())) {
             throw new Error("Invalid order status.");
         }
 
@@ -209,4 +209,11 @@ export class OrderService {
         const deleted = await uow.order.delete(orderId);
         return deleted > 0;
     }
+
+    // services/order.service.ts
+    async getOrdersHistoryByUserId(uow: UnitOfWork, userId: string): Promise<Order[]> {
+        return uow.order.findHistoryByUserId(userId);
+    }
+
+
 }

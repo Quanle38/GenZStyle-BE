@@ -7,7 +7,6 @@ import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { CloudinaryService } from "../services/cloudinary.service";
 
 const userService = new UserService();
-const cloudinaryService = new CloudinaryService();
 const userController = {
   // ===== LIST (CÓ PAGINATION) =====
   getAll: async (req: Request, res: Response) => {

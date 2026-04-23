@@ -12,7 +12,7 @@ const couponRouter = Router();
 couponRouter.get(
     "/", 
     authMiddleware, 
-    checkRole([ROLE.ADMIN]), 
+    //checkRole([ROLE.ADMIN]), 
     couponController.getAllCoupons
 );
 
@@ -20,7 +20,7 @@ couponRouter.get(
 couponRouter.post(
     "/create", 
     authMiddleware, 
-    checkRole([ROLE.ADMIN]), 
+    //checkRole([ROLE.ADMIN]), 
     couponController.createCoupon
 );
 
@@ -28,7 +28,7 @@ couponRouter.post(
 couponRouter.put(
     "/update/:id", 
     authMiddleware, 
-    checkRole([ROLE.ADMIN]), 
+    //checkRole([ROLE.ADMIN]), 
     couponController.updateCoupon
 );
 
@@ -36,7 +36,7 @@ couponRouter.put(
 couponRouter.delete(
     "/delete/:id", 
     authMiddleware, 
-    checkRole([ROLE.ADMIN]), 
+    //checkRole([ROLE.ADMIN]), 
     couponController.deleteCoupon
 );
 

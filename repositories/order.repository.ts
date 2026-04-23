@@ -1,9 +1,11 @@
 // repositories/order.repository.ts
 import { BaseRepository } from "./baseRepository";
-import { Order } from "../models/order.model";
+
 import { Op } from "sequelize";
+import { OrderItem, Product, ProductVariant, Order } from "../models";
 
 export class OrderRepository extends BaseRepository<Order> {
+    // Ép kiểu chắc chắn dùng Model đã được bind associations
     protected model = Order;
 
     /**
@@ -125,6 +127,35 @@ export class OrderRepository extends BaseRepository<Order> {
                 }
             },
             include: ['orderItems'],
+            order: [['created_at', 'DESC']]
+        });
+    }
+
+
+// repositories/order.repository.ts
+
+async findHistoryByUserId(userId: string): Promise<Order[]> {
+        return Order.findAll({ // Dùng trực tiếp Class Order từ import trên
+            where: { user_id: userId },
+            include: [
+                {
+                    model: OrderItem,
+                    as: 'orderItems',
+                    include: [
+                        {
+                            model: ProductVariant,
+                            as: 'variant',
+                            include: [
+                                {
+                                    model: Product,
+                                    as: 'product',
+                                    attributes: ['name', 'category', 'brand']
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
             order: [['created_at', 'DESC']]
         });
     }

@@ -5,7 +5,6 @@ import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { authService } from "../services/auth.service";
 import { CloudinaryService } from "../services/cloudinary.service"
 
-const cloudinaryService = new CloudinaryService;
 const authController = {
   login: async (req: Request, res: Response) => {
     const uow = new UnitOfWork();

@@ -16,7 +16,7 @@ const userAddressRouter = Router();
 userAddressRouter.post(
     "/",
     authMiddleware,
-    checkRole([ROLE.USER]),
+    checkRole([ROLE.USER, ROLE.ADMIN]),
     userAddressController.create
 );
 
@@ -24,7 +24,7 @@ userAddressRouter.post(
 userAddressRouter.get(
     "/",
     authMiddleware,
-    checkRole([ROLE.USER]),
+    checkRole([ROLE.USER, ROLE.ADMIN]),
     userAddressController.getAllByUserId
 );
 
@@ -32,7 +32,7 @@ userAddressRouter.get(
 userAddressRouter.get(
     "/:id",
     authMiddleware,
-    checkRole([ROLE.USER]),
+    checkRole([ROLE.USER, ROLE.ADMIN]),
     userAddressController.getById
 );
 
@@ -40,7 +40,7 @@ userAddressRouter.get(
 userAddressRouter.put(
     "/:id",
     authMiddleware,
-    checkRole([ROLE.USER]),
+    checkRole([ROLE.USER, ROLE.ADMIN]),
     userAddressController.update
 );
 
@@ -48,7 +48,7 @@ userAddressRouter.put(
 userAddressRouter.delete(
     "/:id",
     authMiddleware,
-    checkRole([ROLE.USER]),
+    checkRole([ROLE.USER, ROLE.ADMIN]),
     userAddressController.deleteOne
 );
 
