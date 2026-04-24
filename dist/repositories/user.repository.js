@@ -1,51 +1,49 @@
+"use strict";
 // =====================================
 // File: src/repositories/user.repository.ts
 // =====================================
-
-import { User, UserAddress, MembershipTier } from "../models"; // Cần đảm bảo các Model này được import chính xác
-import { BaseRepository } from "../repositories/baseRepository";
-import { ROLE } from "../enums/role.enum";
-import { FindOptions } from "sequelize";
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.UserRepository = void 0;
+const models_1 = require("../models"); // Cần đảm bảo các Model này được import chính xác
+const baseRepository_1 = require("../repositories/baseRepository");
+const role_enum_1 = require("../enums/role.enum");
 // Khai báo UserRepository, kế thừa từ BaseRepository
-export class UserRepository extends BaseRepository<User> {
-    protected model = User;
-
+class UserRepository extends baseRepository_1.BaseRepository {
+    constructor() {
+        super(...arguments);
+        this.model = models_1.User;
+    }
     /**
      * Lấy Membership Tier của user theo ID
      * @param userId ID của User
      * @returns MembershipTier object hoặc null nếu không tìm thấy user hoặc rank
      */
-    async getTierByUserId(userId: string): Promise<MembershipTier | null> {
+    async getTierByUserId(userId) {
         const user = await this.model.findByPk(userId, {
             include: [{
-                model: MembershipTier,
-                as: "membership",
-                required: false
-            }],
+                    model: models_1.MembershipTier,
+                    as: "membership",
+                    required: false
+                }],
             transaction: this.transaction
         });
-
         if (!user || !user.membership) {
             return null;
         }
-
         return user.membership;
     }
-
     // =======================================================
     // Các hàm gốc giữ nguyên
     // =======================================================
-
     /**
      * Tìm user theo ID kèm theo addresses
      */
-    async findByIdWithAddresses(id: string, excludeFields: string[] = []) {
+    async findByIdWithAddresses(id, excludeFields = []) {
         return this.model.findByPk(id, {
             attributes: { exclude: excludeFields },
             include: [
                 {
-                    model: UserAddress,
+                    model: models_1.UserAddress,
                     as: 'addresses',
                     where: { is_deleted: false },
                     required: false
@@ -54,11 +52,10 @@ export class UserRepository extends BaseRepository<User> {
             transaction: this.transaction
         });
     }
-
     /**
      * Tìm tất cả users với phân trang
      */
-    async findAllWithPagination(page: number, limit: number) {
+    async findAllWithPagination(page, limit) {
         const offset = (page - 1) * limit;
         return this.model.findAndCountAll({
             limit,
@@ -68,59 +65,54 @@ export class UserRepository extends BaseRepository<User> {
             transaction: this.transaction
         });
     }
-
     /**
      * Kiểm tra xem user có phải admin không
      */
-    async isAdminOrSuperAdmin(id: string): Promise<boolean> {
+    async isAdminOrSuperAdmin(id) {
         const user = await this.findById(id);
-        if (!user) return false;
-        return user.role === ROLE.ADMIN || user.role === ROLE.SUPERADMIN;
+        if (!user)
+            return false;
+        return user.role === role_enum_1.ROLE.ADMIN || user.role === role_enum_1.ROLE.SUPERADMIN;
     }
-
     /**
      * Tìm user theo email
      */
-    async findByEmail(email: string): Promise<User | null> {
+    async findByEmail(email) {
         return this.findOne({
             where: { email, is_deleted: false }
         });
     }
-
     /**
      * Tìm user theo phone number
      */
-    async findByPhoneNumber(phoneNumber: string): Promise<User | null> {
+    async findByPhoneNumber(phoneNumber) {
         return this.findOne({
             where: { phone_number: phoneNumber, is_deleted: false }
         });
     }
-
     /**
      * Cập nhật refresh token
      */
-    async updateRefreshToken(id: string, refreshToken: string | null): Promise<boolean> {
+    async updateRefreshToken(id, refreshToken) {
         const [affectedCount] = await this.update(id, {
             refresh_token: refreshToken
         });
         return affectedCount > 0;
     }
-
     /**
      * Cập nhật password
      */
-    async updatePassword(id: string, hashedPassword: string): Promise<boolean> {
+    async updatePassword(id, hashedPassword) {
         const [affectedCount] = await this.update(id, {
             password: hashedPassword,
             updated_at: new Date()
         });
         return affectedCount > 0;
     }
-
     /**
      * Tìm users theo role
      */
-    async findByRole(role: ROLE, options?: Omit<FindOptions, 'transaction'>): Promise<User[]> {
+    async findByRole(role, options) {
         return this.findAll({
             ...options,
             where: {
@@ -129,11 +121,10 @@ export class UserRepository extends BaseRepository<User> {
             }
         });
     }
-
     /**
      * Đếm số lượng users theo role
      */
-    async countByRole(role: ROLE): Promise<number> {
+    async countByRole(role) {
         return this.count({
             where: {
                 role,
@@ -141,14 +132,12 @@ export class UserRepository extends BaseRepository<User> {
             }
         });
     }
-
     /**
      * Tìm kiếm users theo từ khóa (email, first_name, last_name, phone)
      */
-    async searchUsers(keyword: string, page: number = 1, limit: number = 10) {
+    async searchUsers(keyword, page = 1, limit = 10) {
         const offset = (page - 1) * limit;
         const { Op } = require('sequelize');
-
         return this.findAndCountAll({
             where: {
                 is_deleted: false,
@@ -164,11 +153,10 @@ export class UserRepository extends BaseRepository<User> {
             order: [["created_at", "DESC"]]
         });
     }
-
     /**
      * Lấy tất cả users đã bị xóa mềm
      */
-    async findDeletedUsers(page: number = 1, limit: number = 10) {
+    async findDeletedUsers(page = 1, limit = 10) {
         const offset = (page - 1) * limit;
         return this.findAndCountAll({
             where: { is_deleted: true },
@@ -177,36 +165,33 @@ export class UserRepository extends BaseRepository<User> {
             order: [["updated_at", "DESC"]]
         });
     }
-
     /**
      * Khôi phục user đã bị xóa mềm
      */
-    async restore(id: string): Promise<boolean> {
+    async restore(id) {
         const [affectedCount] = await this.update(id, {
             is_deleted: false,
             updated_at: new Date()
         });
         return affectedCount > 0;
     }
-
     /**
      * Xóa vĩnh viễn user (hard delete)
      */
-    async hardDelete(id: string): Promise<number> {
+    async hardDelete(id) {
         return this.delete(id);
     }
-
-    async findByRefreshToken(token: string): Promise<User | null> {
+    async findByRefreshToken(token) {
         return this.findOne({
             where: { refresh_token: token, is_deleted: false }
         });
     }
-    async isNewUser(user_id: string): Promise<boolean> {
+    async isNewUser(user_id) {
         const check = await this.findOne({
             where: { id: user_id, is_new: true, is_deleted: false }
         });
         return !check ? false : true;
     }
-
-
 }
+exports.UserRepository = UserRepository;
+//# sourceMappingURL=user.repository.js.map

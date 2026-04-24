@@ -12,12 +12,12 @@ export const loadUserMiddleware = async (req: Request, res: Response, next: Next
     
     try {
         // ✅ Kiểm tra req.user đã tồn tại (từ authMiddleware)
-        if (!req.user || !req.user.user_id) {
+        if (!req.user || !req.user.id) {
             return handleError(res, 401, "User not authenticated");
         }
 
         // ✅ Lấy full user từ DB
-        const user = await uow.users.findById(req.user.user_id);
+        const user = await uow.users.findById(req.user.id);
 
         if (!user) {
             return handleError(res, 404, "User not found");

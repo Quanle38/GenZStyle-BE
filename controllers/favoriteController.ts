@@ -16,19 +16,21 @@ const favoriteController = {
      */
     getAllByCurrentUser: async (req: Request, res: Response) => {
         const uow = new UnitOfWork();
+
         try {
-            // **GIẢ ĐỊNH**: userId được lấy từ req.user sau khi Auth Middleware chạy
-            const user: User = req.user;
+            const user = req.user;
 
             if (!user) {
                 return handleError(res, 401, "User not authenticated.");
             }
+
             const favorites = await favoriteService.getAllfavorite(uow, user.id);
 
             return res.status(200).json({
                 success: true,
                 data: favorites,
             });
+
         } catch (error) {
             return handleError(res, 500, error as any);
         }
@@ -61,21 +63,28 @@ const favoriteController = {
      */
     toggleFavorite: async (req: Request, res: Response) => {
         const uow = new UnitOfWork();
+
         try {
-            // **GIẢ ĐỊNH**: userId được lấy từ req.user sau khi Auth Middleware chạy
-            const user: User = req.user;
+            const user = req.user;
 
             if (!user) {
                 return handleError(res, 401, "User not authenticated.");
-            } // Thay bằng req.user.id trong thực tế
+            }
+
             const { productId } = req.body;
 
-            if (!user.id || !productId) {
-                return handleError(res, 400, "Missing required fields: userId and productId");
+            if (!productId) {
+                return handleError(res, 400, "Missing productId");
             }
 
             await uow.start();
-            const result = await favoriteService.toggleFavorite(uow, user.id, productId);
+
+            const result = await favoriteService.toggleFavorite(
+                uow,
+                user.id,
+                productId
+            );
+
             await uow.commit();
 
             if (result === "REMOVED") {
@@ -92,6 +101,7 @@ const favoriteController = {
                 is_favorited: true,
                 data: result,
             });
+
         } catch (error: any) {
             await uow.rollback();
             return handleError(res, 500, error.message || error);
@@ -106,7 +116,7 @@ const favoriteController = {
                 success: true,
             });
         } catch (error) {
-            return handleError(res, 500, error as any); 
+            return handleError(res, 500, error as any);
         }
     },
 
