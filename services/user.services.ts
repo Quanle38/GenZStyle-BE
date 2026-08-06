@@ -7,6 +7,15 @@ import { hashPassword } from "../helpers/password.helper";
 
 const ATTRIBUTES_TO_EXCLUDE = ['password', 'refresh_token', 'is_deleted'];
 
+const UPDATABLE_FIELDS: (keyof UpdateRequestBodyUser)[] = [
+    'first_name',
+    'last_name',
+    'dob',
+    'phone_number',
+    'gender',
+    'avatar',
+];
+
 export class UserService {
 
     async getAll(uow: UnitOfWork, page: number, limit: number) {
@@ -22,9 +31,18 @@ export class UserService {
     async update(uow: UnitOfWork, id: string, data: UpdateRequestBodyUser) {
         const existingUser: User | null = await uow.users.findById(id);
         if (!existingUser) return null;
+
+        // Whitelist: chỉ cho phép cập nhật các trường an toàn (chặn role / membership_id / password...)
+        const updateData: Partial<User> = {};
+        for (const field of UPDATABLE_FIELDS) {
+            if (data[field] !== undefined) (updateData as any)[field] = data[field];
+        }
+
+        if (Object.keys(updateData).length === 0) return null;
+
         const [affectedCount] = await uow.users.update(id, {
-            ...existingUser,
-            ...data,
+            ...updateData,
+            updated_at: new Date(),
         });
 
         if (affectedCount === 0) return null;

@@ -43,9 +43,40 @@ export class OrderService {
      * Tạo đơn hàng mới từ giỏ hàng hoặc từ dữ liệu trực tiếp
      */
     async createOrder(uow: UnitOfWork, orderData: CreateOrderData): Promise<Order> {
+        // Lấy giá thật từ DB, không tin giá client gửi lên (chống tamper giá)
+        const orderItems: Array<{
+            order_id: string;
+            variant_id: string;
+            quantity: number;
+            price_per_unit: number;
+        }> = [];
+
+        for (const item of orderData.items) {
+            const variant = await uow.productVariants.findById(item.variant_id);
+            if (!variant) {
+                throw new Error(`Variant ${item.variant_id} not found.`);
+            }
+            if (variant.is_deleted) {
+                throw new Error(`Variant ${item.variant_id} is no longer available.`);
+            }
+            if (item.quantity <= 0) {
+                throw new Error(`Quantity must be positive for variant ${item.variant_id}.`);
+            }
+            if (variant.stock < item.quantity) {
+                throw new Error(`Not enough stock for variant ${item.variant_id}.`);
+            }
+
+            orderItems.push({
+                order_id: "", // fill sau khi có order id
+                variant_id: item.variant_id,
+                quantity: item.quantity,
+                price_per_unit: Number(variant.price),
+            });
+        }
+
         // Tính tổng số lượng và tổng giá
-        const totalQuantity = orderData.items.reduce((sum, item) => sum + item.quantity, 0);
-        const totalPrice = orderData.items.reduce(
+        const totalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+        const totalPrice = orderItems.reduce(
             (sum, item) => sum + (item.quantity * item.price_per_unit),
             0
         );
@@ -61,15 +92,13 @@ export class OrderService {
 
         const createdOrder = await uow.order.create(newOrder);
 
-        // Tạo các order items
-        const orderItems = orderData.items.map(item => ({
+        // Gắn order_id cho các order items rồi bulk create
+        const itemsToCreate = orderItems.map(item => ({
+            ...item,
             order_id: createdOrder.id,
-            variant_id: item.variant_id,
-            quantity: item.quantity,
-            price_per_unit: item.price_per_unit
         }));
 
-        await uow.orderItem.bulkCreate(orderItems);
+        await uow.orderItem.bulkCreate(itemsToCreate);
 
         // Lấy lại order với đầy đủ thông tin
         const fullOrder = await uow.order.findById(createdOrder.id, {

@@ -1,125 +1,863 @@
 openapi: 3.0.0
 info:
   title: GenZStyle API Documentation
+  description: REST API for the GenZStyle shoe shop (Auth, Product, Cart, Order, Payment, Coupon, Membership, Report...). All protected routes require `Authorization: Bearer <token>`.
   version: 1.0.0
-  description: Tài liệu API cho hệ thống GenZStyle (Auth & Cart) sử dụng Express.
+  contact:
+    name: GenZStyle Team
 
 servers:
   - url: http://localhost:5000
     description: Local Development Server
 
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: User
+    description: User management (admin)
+  - name: Product
+    description: Product catalog
+  - name: Variant
+    description: Product variants (size / color / stock)
+  - name: Cart
+    description: Shopping cart
+  - name: CartCoupon
+    description: Coupons applied on a cart
+  - name: Coupon
+    description: Coupon management and apply
+  - name: Favorite
+    description: Wishlist / favorites
+  - name: Membership
+    description: Membership tiers
+  - name: Address
+    description: User shipping addresses
+  - name: Order
+    description: Orders
+  - name: Payment
+    description: Payments (SePay QR)
+  - name: ConditionSet
+    description: Coupon condition sets
+  - name: History
+    description: Purchase history
+  - name: Report
+    description: Admin reports
+  - name: Webhook
+    description: SePay webhook
+
 paths:
-  # ------------------------------------------------------------------
-  # AUTHENTICATION (Prefix: /api/v1/auth)
-  # ------------------------------------------------------------------
+  # ==================================================================
+  # AUTH
+  # ==================================================================
   /api/v1/auth/login:
     post:
-      summary: Đăng nhập người dùng
       tags: [Auth]
+      summary: Login with email & password
+      operationId: authLogin
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email, password]
-              properties:
-                email:
-                  type: string
-                  format: email
-                  example: user@example.com
-                password:
-                  type: string
-                  example: password123
+              $ref: '#/components/schemas/AuthLoginRequest'
       responses:
-        200:
-          description: Đăng nhập thành công, trả về token
-        401:
-          description: Sai thông tin đăng nhập
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successfully
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
 
   /api/v1/auth/register:
     post:
-      summary: Đăng ký người dùng mới (có upload ảnh)
       tags: [Auth]
+      summary: Register a new user (multipart; optional avatar file)
+      operationId: authRegister
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
-              required: [email, password, username]
+              required: [first_name, last_name, email, password, phone_number, birthday, gender, address]
               properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
                 email:
                   type: string
+                  format: email
                 password:
                   type: string
-                username:
+                  format: password
+                phone_number:
+                  type: string
+                birthday:
+                  type: string
+                  format: date
+                gender:
+                  type: string
+                  example: MALE
+                address:
                   type: string
                 file:
                   type: string
                   format: binary
-                  description: File ảnh đại diện (avatar)
+                  description: Optional avatar image (jpg/jpeg/png/webp, max 5MB)
       responses:
-        201:
-          description: Đăng ký tài khoản thành công
-        400:
-          description: Dữ liệu không hợp lệ hoặc email đã tồn tại
+        '201':
+          description: Register success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Register successfully
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                      refresh_token:
+                        type: string
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/Error400'
 
   /api/v1/auth/refreshToken:
     post:
-      summary: Làm mới access token
       tags: [Auth]
+      summary: Refresh access token using current (refresh) token
+      operationId: authRefreshToken
       security:
         - bearerAuth: []
       responses:
-        200:
-          description: Cấp token mới thành công
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token refreshed successfully
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+        '401':
+          $ref: '#/components/responses/Error401'
 
   /api/v1/auth/logout:
     post:
-      summary: Đăng xuất người dùng
       tags: [Auth]
+      summary: Logout (revoke refresh token)
+      operationId: authLogout
       security:
         - bearerAuth: []
       responses:
-        200:
-          description: Đăng xuất và hủy token thành công
+        '200':
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logout successfully
 
   /api/v1/auth/me:
     get:
-      summary: Lấy thông tin người dùng hiện tại
       tags: [Auth]
+      summary: Get current authenticated user
+      operationId: authMe
       security:
         - bearerAuth: []
       responses:
-        200:
-          description: Trả về thông tin chi tiết profile
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Error401'
 
-  # ------------------------------------------------------------------
-  # CART MANAGEMENT (Prefix: /api/v1/carts)
-  # ------------------------------------------------------------------
-  /api/v1/carts:
+  # ==================================================================
+  # USER (admin)
+  # ==================================================================
+  /api/v1/user/getAll:
     get:
-      summary: Lấy giỏ hàng hiện tại
-      tags: [Cart]
+      tags: [User]
+      summary: Get all users (paged) - ADMIN
+      operationId: userGetAll
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
       responses:
-        200:
-          description: Trả về chi tiết giỏ hàng và các items
-    delete:
-      summary: Xóa sạch toàn bộ giỏ hàng
-      tags: [Cart]
-      security:
-        - bearerAuth: []
-      responses:
-        200:
-          description: Đã dọn trống giỏ hàng
+        '200':
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentPage:
+                    type: integer
+                  totalPage:
+                    type: integer
+                  totalUser:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
 
-  /api/v1/carts/items:
+  /api/v1/user/get/{id}:
+    get:
+      tags: [User]
+      summary: Get user by id - ADMIN / USER
+      operationId: userGetById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/user/create:
     post:
-      summary: Thêm hoặc cập nhật số lượng sản phẩm
+      tags: [User]
+      summary: Create user - ADMIN
+      operationId: userCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/user/update/{id}:
+    patch:
+      tags: [User]
+      summary: Update user (multipart, optional avatar file) - ADMIN / USER
+      operationId: userUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                dob:
+                  type: string
+                  format: date
+                phone_number:
+                  type: string
+                gender:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+                  description: New avatar image (jpg/jpeg/png/webp, max 5MB)
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/user/delete/{id}:
+    delete:
+      tags: [User]
+      summary: Soft-delete user - ADMIN
+      operationId: userDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User deleted successfully
+                  data:
+                    type: null
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  # ==================================================================
+  # PRODUCT
+  # ==================================================================
+  /api/v1/product/:
+    get:
+      tags: [Product]
+      summary: Get all products (paged, public)
+      operationId: productGetAll
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentPage:
+                    type: integer
+                  totalPage:
+                    type: integer
+                  totalProduct:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+
+  /api/v1/product/search:
+    get:
+      tags: [Product]
+      summary: Advanced product search (public)
+      operationId: productSearch
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: brand
+          in: query
+          schema:
+            type: string
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+        - name: size
+          in: query
+          schema:
+            type: number
+        - name: color
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentPage:
+                    type: integer
+                  totalPage:
+                    type: integer
+                  totalProduct:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+
+  /api/v1/product/{id}:
+    get:
+      tags: [Product]
+      summary: Get product by id with variants (public)
+      operationId: productGetById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/product/create:
+    post:
+      tags: [Product]
+      summary: Create product with variants (public)
+      operationId: productCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/product/update/{id}:
+    post:
+      tags: [Product]
+      summary: Update product, optionally append variants - ADMIN
+      operationId: productUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateRequest'
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/product/delete/{id}:
+    delete:
+      tags: [Product]
+      summary: Soft-delete product - ADMIN
+      operationId: productDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted (no content)
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  # ==================================================================
+  # VARIANT
+  # ==================================================================
+  /api/v1/variant/:
+    get:
+      tags: [Variant]
+      summary: Get all variants (paged, public)
+      operationId: variantGetAll
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Paginated variant list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentPage:
+                    type: integer
+                  totalPage:
+                    type: integer
+                  totalVariant:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductVariant'
+
+  /api/v1/variant/{id}:
+    get:
+      tags: [Variant]
+      summary: Get variant by id (public)
+      operationId: variantGetById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Variant found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProductVariant'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/variant/create:
+    post:
+      tags: [Variant]
+      summary: Create a variant (public)
+      operationId: variantCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariantCreateRequest'
+      responses:
+        '201':
+          description: Variant created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProductVariant'
+
+  /api/v1/variant/autoCreate:
+    post:
+      tags: [Variant]
+      summary: Create variant or add stock when same size/color/price exists (public)
+      operationId: variantAutoCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariantCreateRequest'
+      responses:
+        '200':
+          description: Variant created / updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProductVariant'
+
+  /api/v1/variant/update/{id}:
+    patch:
+      tags: [Variant]
+      summary: Update a variant (public)
+      operationId: variantUpdate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariantUpdateRequest'
+      responses:
+        '200':
+          description: Variant updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProductVariant'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/variant/delete/{id}:
+    delete:
+      tags: [Variant]
+      summary: Soft-delete a variant (public)
+      operationId: variantDelete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted (no content)
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  # ==================================================================
+  # CART
+  # ==================================================================
+  /api/v1/cart/:
+    get:
       tags: [Cart]
+      summary: Get (or create) the current user's cart
+      operationId: cartGet
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Cart'
+
+  /api/v1/cart/items:
+    post:
+      tags: [Cart]
+      summary: Add a variant to the cart
+      operationId: cartAddItem
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemAddRequest'
+      responses:
+        '201':
+          description: Item added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Cart'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+    delete:
+      tags: [Cart]
+      summary: Remove an item from the cart
+      operationId: cartRemoveItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cartItemId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Item removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/cart/items/{cartItemId}:
+    put:
+      tags: [Cart]
+      summary: Update quantity / variant of a cart item
+      operationId: cartUpdateItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cartItemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                variantId:
+                  type: string
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/CartItem'
+
+  # ==================================================================
+  # CART COUPONS (mounted under /api/v1/cart/coupons)
+  # ==================================================================
+  /api/v1/cart/coupons:
+    get:
+      tags: [CartCoupon]
+      summary: Get coupons applied to the current user's cart
+      operationId: cartCouponGet
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Applied coupons
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Coupon'
+
+    post:
+      tags: [CartCoupon]
+      summary: Apply a coupon to the current user's cart
+      operationId: cartCouponApply
       security:
         - bearerAuth: []
       requestBody:
@@ -128,30 +866,1425 @@ paths:
           application/json:
             schema:
               type: object
-              required: [variant_id, quantity]
+              required: [coupon_code]
               properties:
-                variant_id:
+                coupon_code:
                   type: string
-                quantity:
-                  type: integer
-                  minimum: 1
       responses:
-        201:
-          description: Đã thêm vào giỏ hàng
+        '201':
+          description: Coupon applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/CartCoupon'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/cart/coupons/{couponId}:
     delete:
-      summary: Xóa một sản phẩm cụ thể khỏi giỏ hàng
-      tags: [Cart]
+      tags: [CartCoupon]
+      summary: Remove a coupon from the current user's cart
+      operationId: cartCouponRemove
       security:
         - bearerAuth: []
       parameters:
-        - in: query
-          name: cartItemId
+        - name: couponId
+          in: path
           required: true
           schema:
             type: integer
       responses:
-        200:
-          description: Đã xóa item khỏi giỏ hàng
+        '200':
+          description: Coupon removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  # ==================================================================
+  # COUPON
+  # ==================================================================
+  /api/v1/coupon/:
+    get:
+      tags: [Coupon]
+      summary: Get all coupons (paged, with search)
+      operationId: couponGetAll
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated coupon list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Coupon'
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+
+  /api/v1/coupon/create:
+    post:
+      tags: [Coupon]
+      summary: Create a coupon with optional conditions
+      operationId: couponCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CouponCreateRequest'
+      responses:
+        '201':
+          description: Coupon created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Coupon'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/coupon/update/{id}:
+    put:
+      tags: [Coupon]
+      summary: Update coupon (and its conditions)
+      operationId: couponUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CouponUpdateRequest'
+      responses:
+        '200':
+          description: Coupon updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Coupon'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/coupon/delete/{id}:
+    delete:
+      tags: [Coupon]
+      summary: Soft-delete a coupon
+      operationId: couponDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Coupon deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/coupon/get-all-by-user-id:
+    get:
+      tags: [Coupon]
+      summary: Get coupons available to the current user
+      operationId: couponGetByUserId
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Available coupons
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Coupon'
+
+  /api/v1/coupon/get-by-code/{code}:
+    get:
+      tags: [Coupon]
+      summary: Get coupon details by code
+      operationId: couponGetByCode
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Coupon found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Coupon'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/coupon/apply-coupon:
+    post:
+      tags: [Coupon]
+      summary: Apply a coupon and get the computed discount
+      operationId: couponApply
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Coupon applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      discountAmount:
+                        type: number
+                      couponCode:
+                        type: string
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  # ==================================================================
+  # FAVORITE
+  # ==================================================================
+  /api/v1/favorite/:
+    get:
+      tags: [Favorite]
+      summary: Get current user's favorite products
+      operationId: favoriteGetMine
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Favorites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Favorite'
+
+  /api/v1/favorite/toggle:
+    post:
+      tags: [Favorite]
+      summary: Toggle a product in the favorites list
+      operationId: favoriteToggle
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              properties:
+                productId:
+                  type: string
+      responses:
+        '200':
+          description: Removed from favorites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  is_favorited:
+                    type: boolean
+        '201':
+          description: Added to favorites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  is_favorited:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Favorite'
+
+  /api/v1/favorite/by-id:
+    get:
+      tags: [Favorite]
+      summary: Get favorites by user id
+      operationId: favoriteGetByUserId
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Favorites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Favorite'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/favorite/send:
+    post:
+      tags: [Favorite]
+      summary: Test endpoint - sends a hardcoded email
+      operationId: favoriteSendEmail
+      responses:
+        '200':
+          description: Email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  # ==================================================================
+  # MEMBERSHIP
+  # ==================================================================
+  /api/v1/membership/:
+    get:
+      tags: [Membership]
+      summary: Get all membership tiers
+      operationId: membershipGetAll
+      responses:
+        '200':
+          description: All tiers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MembershipTier'
+
+    post:
+      tags: [Membership]
+      summary: Create a membership tier
+      operationId: membershipCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipTierCreateRequest'
+      responses:
+        '201':
+          description: Tier created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/MembershipTier'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/membership/user-rank:
+    get:
+      tags: [Membership]
+      summary: Get membership tier by user id
+      operationId: membershipGetByUserId
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tier found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MembershipTier'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/membership/update:
+    put:
+      tags: [Membership]
+      summary: Update a membership tier (id via query param)
+      operationId: membershipUpdate
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipTierUpdateRequest'
+      responses:
+        '200':
+          description: Tier updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/MembershipTier'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/membership/delete:
+    delete:
+      tags: [Membership]
+      summary: Soft-delete a membership tier (id via query param)
+      operationId: membershipDelete
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted (no content)
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  # ==================================================================
+  # ADDRESS
+  # ==================================================================
+  /api/v1/user-address/:
+    get:
+      tags: [Address]
+      summary: Get all addresses of the current user
+      operationId: addressGetMine
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserAddress'
+
+    post:
+      tags: [Address]
+      summary: Create a new address for the current user
+      operationId: addressCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAddressCreateRequest'
+      responses:
+        '201':
+          description: Address created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UserAddress'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/user-address/{id}:
+    get:
+      tags: [Address]
+      summary: Get one address by id (current user only)
+      operationId: addressGetById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Address found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/UserAddress'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+    put:
+      tags: [Address]
+      summary: Update an address (current user only)
+      operationId: addressUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAddressUpdateRequest'
+      responses:
+        '200':
+          description: Address updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/UserAddress'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+    delete:
+      tags: [Address]
+      summary: Soft-delete an address (current user only)
+      operationId: addressDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted (no content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  # ==================================================================
+  # ORDER
+  # ==================================================================
+  /api/v1/order/:
+    get:
+      tags: [Order]
+      summary: Get all orders of the current user
+      operationId: orderGetAll
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+
+    post:
+      tags: [Order]
+      summary: Create an order from items
+      operationId: orderCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/order/statistics:
+    get:
+      tags: [Order]
+      summary: Order statistics for the current user
+      operationId: orderStatistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      totalOrders:
+                        type: integer
+                      totalSpent:
+                        type: number
+                      ordersByStatus:
+                        type: object
+                        additionalProperties:
+                          type: integer
+
+  /api/v1/order/date-range:
+    get:
+      tags: [Order]
+      summary: Get orders within a date range
+      operationId: orderGetByDateRange
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/order/status/{status}:
+    get:
+      tags: [Order]
+      summary: Get orders by status
+      operationId: orderGetByStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [Pending, Processing, Shipping, Delivered, Completed, Cancelled, Failed]
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+
+  /api/v1/order/{id}:
+    get:
+      tags: [Order]
+      summary: Get order detail by id
+      operationId: orderGetById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+    delete:
+      tags: [Order]
+      summary: Delete an order (only cancelled orders)
+      operationId: orderDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/order/{id}/items:
+    get:
+      tags: [Order]
+      summary: Get items of an order
+      operationId: orderGetItems
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderItem'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/order/{id}/status:
+    patch:
+      tags: [Order]
+      summary: Update order status
+      operationId: orderUpdateStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  example: Completed
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/order/{id}/cancel:
+    patch:
+      tags: [Order]
+      summary: Cancel an order (only pending orders)
+      operationId: orderCancel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  # ==================================================================
+  # PAYMENT
+  # ==================================================================
+  /api/v1/payment/create:
+    post:
+      tags: [Payment]
+      summary: Create a payment (SePay QR)
+      operationId: paymentCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreateRequest'
+      responses:
+        '200':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderCode:
+                    type: string
+                    example: OD000001
+                  createdAt:
+                    type: string
+                    format: date-time
+                  description:
+                    type: string
+                  status:
+                    type: string
+                    example: pending
+                  qrURL:
+                    type: string
+                    description: SePay QR image URL (bank transfer)
+
+  /api/v1/payment/{id}/status:
+    get:
+      tags: [Payment]
+      summary: Get payment status by order code
+      operationId: paymentStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            description: Order code (e.g. OD000001) or payment id
+      responses:
+        '200':
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Pending
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  # ==================================================================
+  # CONDITION SET
+  # ==================================================================
+  /api/v1/condition-set/getAll:
+    get:
+      tags: [ConditionSet]
+      summary: Get all condition sets (paged)
+      operationId: conditionSetGetAll
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Paginated condition sets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  currentPage:
+                    type: integer
+                  totalPage:
+                    type: integer
+                  totalConditionSet:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConditionSet'
+
+  /api/v1/condition-set/{id}:
+    get:
+      tags: [ConditionSet]
+      summary: Get a condition set by id
+      operationId: conditionSetGetById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Condition set found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/ConditionSet'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+    delete:
+      tags: [ConditionSet]
+      summary: Soft-delete a condition set - ADMIN
+      operationId: conditionSetDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Condition set deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /api/v1/condition-set/create:
+    post:
+      tags: [ConditionSet]
+      summary: Create a condition set - ADMIN
+      operationId: conditionSetCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConditionSetCreateRequest'
+      responses:
+        '201':
+          description: Condition set created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/ConditionSet'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  /api/v1/condition-set/update/{id}:
+    patch:
+      tags: [ConditionSet]
+      summary: Update a condition set - ADMIN
+      operationId: conditionSetUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConditionSetUpdateRequest'
+      responses:
+        '200':
+          description: Condition set updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/ConditionSet'
+        '400':
+          $ref: '#/components/responses/Error400'
+
+  # ==================================================================
+  # HISTORY
+  # ==================================================================
+  /api/v1/history/my-orders:
+    get:
+      tags: [History]
+      summary: Get the current user's purchase history - USER
+      operationId: historyMyOrders
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Purchase history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+        '403':
+          $ref: '#/components/responses/Error403'
+
+  # ==================================================================
+  # REPORT
+  # ==================================================================
+  /api/v1/report/overview:
+    get:
+      tags: [Report]
+      summary: Admin overview report
+      operationId: reportOverview
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Overview report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverviewReport'
+
+  /api/v1/report/summary:
+    get:
+      tags: [Report]
+      summary: Admin summary stat cards
+      operationId: reportSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/v1/report/revenue-by-month:
+    get:
+      tags: [Report]
+      summary: Revenue per month
+      operationId: reportRevenueByMonth
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Revenue by month
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month:
+                          type: integer
+                        revenue:
+                          type: number
+                        orders:
+                          type: integer
+
+  /api/v1/report/top-products:
+    get:
+      tags: [Report]
+      summary: Top selling products
+      operationId: reportTopProducts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+      responses:
+        '200':
+          description: Top products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        sold:
+                          type: integer
+
+  /api/v1/report/category-revenue:
+    get:
+      tags: [Report]
+      summary: Revenue by category
+      operationId: reportCategoryRevenue
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Category revenue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: number
+
+  /api/v1/report/order-status:
+    get:
+      tags: [Report]
+      summary: Order status breakdown
+      operationId: reportOrderStatus
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Status breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: integer
+
+  /api/v1/report/new-users:
+    get:
+      tags: [Report]
+      summary: New users per month
+      operationId: reportNewUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: integer
+            default: 6
+      responses:
+        '200':
+          description: New users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month:
+                          type: integer
+                        users:
+                          type: integer
+
+  # ==================================================================
+  # WEBHOOK
+  # ==================================================================
+  /api/v1/webhook/sepay:
+    post:
+      tags: [Webhook]
+      summary: SePay payment webhook (header: `Apikey <SEPAY_APIKEY>`)
+      operationId: webhookSepay
+      security:
+        - apikeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Error401'
 
 components:
   securitySchemes:
@@ -159,3 +2292,793 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT access token from login / refreshToken
+    apikeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'Value: `Apikey <SEPAY_APIKEY>`'
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 10
+
+  responses:
+    Error400:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error401:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error403:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error404:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          nullable: true
+
+    # ------------------------------------------------------------------
+    # AUTH / USER
+    # ------------------------------------------------------------------
+    AuthLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+        dob:
+          type: string
+          format: date
+        phone_number:
+          type: string
+        gender:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, USER, SUPERADMIN, STAFF]
+        avatar:
+          type: string
+          nullable: true
+        is_new:
+          type: boolean
+        membership_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserCreateRequest:
+      type: object
+      required: [first_name, last_name, email, dob, phone_number, gender, password, membership_id]
+      properties:
+        address:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        dob:
+          type: string
+          format: date
+        phone_number:
+          type: string
+        gender:
+          type: string
+        password:
+          type: string
+          format: password
+        membership_id:
+          type: string
+          enum: [BRONZE, SILVER, GOLD, PLATINUM, VIP]
+        avatar:
+          type: string
+          nullable: true
+
+    # ------------------------------------------------------------------
+    # PRODUCT / VARIANT
+    # ------------------------------------------------------------------
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        base_price:
+          type: number
+        description:
+          type: string
+          nullable: true
+        brand:
+          type: string
+          nullable: true
+        category:
+          type: string
+        is_deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+
+    ProductVariant:
+      type: object
+      properties:
+        id:
+          type: string
+        product_id:
+          type: string
+        size:
+          type: integer
+        color:
+          type: string
+        stock:
+          type: integer
+        price:
+          type: number
+        image:
+          type: string
+          nullable: true
+        is_deleted:
+          type: boolean
+
+    VariantInput:
+      type: object
+      required: [size, color, stock, price]
+      properties:
+        size:
+          type: integer
+        color:
+          type: string
+        stock:
+          type: integer
+        price:
+          type: number
+        image:
+          type: string
+          nullable: true
+
+    ProductCreateRequest:
+      type: object
+      required: [name, category, variants]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        brand:
+          type: string
+        category:
+          type: string
+        variants:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/VariantInput'
+
+    ProductUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        brand:
+          type: string
+        category:
+          type: string
+        variants:
+          type: array
+          description: Additional variants to append
+          items:
+            $ref: '#/components/schemas/VariantInput'
+
+    VariantCreateRequest:
+      type: object
+      required: [product_id, size, color, stock, price]
+      properties:
+        product_id:
+          type: string
+        size:
+          type: integer
+        color:
+          type: string
+        stock:
+          type: integer
+        price:
+          type: number
+        image:
+          type: string
+          nullable: true
+
+    VariantUpdateRequest:
+      type: object
+      properties:
+        product_id:
+          type: string
+        size:
+          type: integer
+        color:
+          type: string
+        stock:
+          type: integer
+        price:
+          type: number
+        image:
+          type: string
+          nullable: true
+
+    # ------------------------------------------------------------------
+    # CART
+    # ------------------------------------------------------------------
+    Cart:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        amount:
+          type: integer
+          description: Total quantity of items
+        total_price:
+          type: number
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        cart_id:
+          type: string
+        variant_id:
+          type: string
+        quantity:
+          type: integer
+        total_price:
+          type: number
+        variant:
+          $ref: '#/components/schemas/ProductVariant'
+
+    CartItemAddRequest:
+      type: object
+      required: [variant_id, quantity]
+      properties:
+        variant_id:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+
+    CartCoupon:
+      type: object
+      properties:
+        id:
+          type: integer
+        cart_id:
+          type: string
+        coupon_id:
+          type: string
+        applied_at:
+          type: string
+          format: date-time
+        coupon:
+          $ref: '#/components/schemas/Coupon'
+
+    # ------------------------------------------------------------------
+    # COUPON / CONDITION
+    # ------------------------------------------------------------------
+    Coupon:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [PERCENT, FIXED]
+        usage_limit:
+          type: integer
+        used_count:
+          type: integer
+        value:
+          type: number
+        max_discount:
+          type: number
+          nullable: true
+        condition_set_id:
+          type: string
+        conditionSet:
+          $ref: '#/components/schemas/ConditionSet'
+
+    ConditionDetailInput:
+      type: object
+      required: [condition_type, condition_value]
+      properties:
+        condition_type:
+          type: string
+          enum: [TIER, MIN_ORDER_VALUE, NEW_USER, DAY_OF_WEEK, HOUR_OF_DAY]
+        condition_value:
+          type: string
+          description: e.g. GOLD / 500000 / 1 / 5 / 18-21
+
+    CouponCreateRequest:
+      type: object
+      required: [code, start_time, end_time, type, value, condition_set_id]
+      properties:
+        code:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [PERCENT, FIXED]
+        usage_limit:
+          type: integer
+          default: 1
+        value:
+          type: number
+        max_discount:
+          type: number
+          nullable: true
+        condition_set_id:
+          type: string
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionDetailInput'
+
+    CouponUpdateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [PERCENT, FIXED]
+        usage_limit:
+          type: integer
+        value:
+          type: number
+        max_discount:
+          type: number
+          nullable: true
+        condition_set_id:
+          type: string
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionDetailInput'
+
+    ConditionSet:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        is_reusable:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionDetail'
+
+    ConditionDetail:
+      type: object
+      properties:
+        condition_detail_id:
+          type: integer
+        condition_set_id:
+          type: string
+        condition_type:
+          type: string
+        condition_value:
+          type: string
+
+    ConditionSetCreateRequest:
+      type: object
+      required: [id, name, details]
+      properties:
+        id:
+          type: string
+          description: e.g. SET_GOLD_1M
+        name:
+          type: string
+        is_reusable:
+          type: boolean
+        details:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ConditionDetailInput'
+
+    ConditionSetUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        is_reusable:
+          type: boolean
+        details:
+          type: array
+          description: Replaces all details if provided
+          items:
+            $ref: '#/components/schemas/ConditionDetailInput'
+
+    # ------------------------------------------------------------------
+    # MEMBERSHIP
+    # ------------------------------------------------------------------
+    MembershipTier:
+      type: object
+      properties:
+        id:
+          type: string
+          description: e.g. GOLD
+        name:
+          type: string
+        min_points:
+          type: integer
+        discount_rate:
+          type: number
+        is_deleted:
+          type: boolean
+
+    MembershipTierCreateRequest:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        min_points:
+          type: integer
+          default: 0
+        discount_rate:
+          type: number
+          default: 0
+
+    MembershipTierUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        min_points:
+          type: integer
+        discount_rate:
+          type: number
+
+    # ------------------------------------------------------------------
+    # ADDRESS
+    # ------------------------------------------------------------------
+    UserAddress:
+      type: object
+      properties:
+        address_id:
+          type: integer
+        user_id:
+          type: string
+        full_address:
+          type: string
+        is_default:
+          type: boolean
+        label:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserAddressCreateRequest:
+      type: object
+      required: [full_address, label]
+      properties:
+        full_address:
+          type: string
+        label:
+          type: string
+          example: Home
+        is_default:
+          type: boolean
+          default: false
+
+    UserAddressUpdateRequest:
+      type: object
+      properties:
+        full_address:
+          type: string
+        label:
+          type: string
+        is_default:
+          type: boolean
+
+    # ------------------------------------------------------------------
+    # ORDER / PAYMENT
+    # ------------------------------------------------------------------
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        cart_id:
+          type: string
+          nullable: true
+        quantity:
+          type: integer
+        total_price:
+          type: number
+        status:
+          type: string
+          enum: [Pending, Processing, Shipping, Delivered, Completed, Cancelled, Failed]
+        method:
+          type: string
+          enum: [Cast, Bank]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        orderItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: string
+        variant_id:
+          type: string
+        quantity:
+          type: integer
+        price_per_unit:
+          type: number
+
+    OrderCreateRequest:
+      type: object
+      required: [items]
+      properties:
+        cart_id:
+          type: string
+          nullable: true
+        method:
+          type: string
+          enum: [Cast, Bank]
+          default: Cast
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [variant_id, quantity, price_per_unit]
+            properties:
+              variant_id:
+                type: string
+              quantity:
+                type: integer
+              price_per_unit:
+                type: number
+
+    PaymentCreateRequest:
+      type: object
+      required: [description, amount, orderId]
+      properties:
+        description:
+          type: string
+          description: Transfer content, used to map back to the order
+        amount:
+          type: number
+        orderId:
+          type: string
+
+    Favorite:
+      type: object
+      properties:
+        favorite_id:
+          type: integer
+        user_id:
+          type: string
+        product_id:
+          type: string
+        product:
+          $ref: '#/components/schemas/Product'
+
+    # ------------------------------------------------------------------
+    # REPORT / WEBHOOK
+    # ------------------------------------------------------------------
+    OverviewReport:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            summary:
+              type: object
+              properties:
+                totalRevenue:
+                  type: number
+                totalOrders:
+                  type: integer
+                newUsers:
+                  type: integer
+                returnCancelRate:
+                  type: number
+            revenueByMonth:
+              type: array
+              items:
+                type: object
+                properties:
+                  month:
+                    type: integer
+                  revenue:
+                    type: number
+                  orders:
+                    type: integer
+            topProducts:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  sold:
+                    type: integer
+            categoryRevenue:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: number
+            orderStatusBreakdown:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: integer
+            newUsersByMonth:
+              type: array
+              items:
+                type: object
+                properties:
+                  month:
+                    type: integer
+                  users:
+                    type: integer
+
+    WebhookPayload:
+      type: object
+      properties:
+        id:
+          type: integer
+        gateway:
+          type: string
+        transactionDate:
+          type: string
+          format: date-time
+        accountNumber:
+          type: string
+        code:
+          type: string
+          nullable: true
+          description: Order code (e.g. OD000001)
+        content:
+          type: string
+        transferType:
+          type: string
+        transferAmount:
+          type: number
+        accumulated:
+          type: number
+        subAccount:
+          type: string
+          nullable: true
+        referenceCode:
+          type: string
+        description:
+          type: string

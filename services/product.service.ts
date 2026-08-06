@@ -54,10 +54,12 @@ export class ProductService {
         if (!product) throw { status: 404, message: "Product not found" };
         const { variants, ...productData } = body;
 
-        if (Object.keys(body).length === 0) {
+        const hasVariants = Array.isArray(variants) && variants.length > 0;
+        if (Object.keys(productData).length === 0 && !hasVariants) {
             throw { status: 400, message: "No fields to update" };
         }
-        if (Array.isArray(variants) && variants !== undefined && variants.length > 0) {
+
+        if (hasVariants) {
             for (const v of variants) {
                 await uow.productVariants.create({
                     product_id: id,
@@ -65,7 +67,19 @@ export class ProductService {
                 });
             }
         }
-        const [affected] = await uow.products.update(id, { ...body, updated_at: new Date() });
+
+        const updateData: Record<string, any> = { ...productData, updated_at: new Date() };
+
+        if (hasVariants) {
+            const existingVariants = await uow.productVariants.findByProduct(id);
+            const prices = [
+                ...existingVariants.map((v) => Number(v.price)),
+                ...variants.map((v) => Number(v.price)),
+            ];
+            updateData.base_price = await CalculateBasePrice(prices);
+        }
+
+        const [affected] = await uow.products.update(id, updateData);
         if (affected === 0) throw { status: 400, message: "Update failed" };
 
         return await uow.products.findByIdWithVariants(id, ATTRIBUTES_TO_EXCLUDE);

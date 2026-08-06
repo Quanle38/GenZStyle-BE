@@ -5,6 +5,7 @@ import parseId from "../helpers/checkId";
 import { UserService } from "../services/user.services";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { CloudinaryService } from "../services/cloudinary.service";
+import { ROLE } from "../enums/role.enum";
 
 const userService = new UserService();
 const userController = {
@@ -94,6 +95,13 @@ const userController = {
       }
 
       const id = parseId(req.params.id);
+
+      const actor = req.user;
+      const isAdmin = !!actor && (actor.role === ROLE.ADMIN || actor.role === ROLE.SUPERADMIN);
+      if (!isAdmin && String(actor?.id) !== String(id)) {
+        await uow.rollback();
+        return handleError(res, 403, "You can only update your own account");
+      }
 
       const user = await userService.update(uow, id, body);
 

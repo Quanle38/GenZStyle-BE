@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { UnitOfWork } from "../unit-of-work/unitOfWork";
 import { OrderService, CreateOrderData } from "../services/order.service";
 import { OrderStatus } from "../enums/order";
+import { ROLE } from "../enums/role.enum";
 
 export class OrderController {
     private orderService: OrderService;
@@ -10,6 +11,15 @@ export class OrderController {
     constructor() {
         this.orderService = new OrderService();
     }
+
+    /**
+     * Kiểm tra quyền truy cập đơn hàng: admin/superadmin thì được, còn lại chỉ đúng chủ sở hữu.
+     */
+    private canAccessOrder = (order: any, user: any): boolean => {
+        if (!user || !order) return false;
+        if (user.role === ROLE.ADMIN || user.role === ROLE.SUPERADMIN) return true;
+        return order.user_id === user.id;
+    };
 
     /**
      * GET /orders
@@ -83,6 +93,11 @@ export class OrderController {
                 return;
             }
 
+            if (!this.canAccessOrder(order, req.user)) {
+                res.status(403).json({ success: false, message: "Access denied" });
+                return;
+            }
+
             res.status(200).json({
                 success: true,
                 data: order
@@ -146,6 +161,7 @@ export class OrderController {
             };
 
             if (!orderData.items || orderData.items.length === 0) {
+                await uow.rollback();
                 res.status(400).json({
                     success: false,
                     message: "Order must have at least one item"
@@ -188,10 +204,18 @@ export class OrderController {
             const { id } = req.params;
             var status: OrderStatus = req.body.status;
             if (!status) {
+                await uow.rollback();
                 res.status(400).json({
                     success: false,
                     message: "Status is required"
                 });
+                return;
+            }
+
+            const existingOrder = await this.orderService.getOrderById(uow, id);
+            if (!this.canAccessOrder(existingOrder, req.user)) {
+                await uow.rollback();
+                res.status(403).json({ success: false, message: "Access denied" });
                 return;
             }
 
@@ -228,6 +252,12 @@ export class OrderController {
             await uow.start();
 
             const { id } = req.params;
+            const existingOrder = await this.orderService.getOrderById(uow, id);
+            if (!this.canAccessOrder(existingOrder, req.user)) {
+                await uow.rollback();
+                res.status(403).json({ success: false, message: "Access denied" });
+                return;
+            }
             const order = await this.orderService.cancelOrder(uow, id);
             await uow.commit();
 
@@ -328,6 +358,11 @@ export class OrderController {
             }
 
             const { id } = req.params;
+            const order = await this.orderService.getOrderById(uow, id);
+            if (!this.canAccessOrder(order, req.user)) {
+                res.status(403).json({ success: false, message: "Access denied" });
+                return;
+            }
             const items = await this.orderService.getOrderItems(uow, id);
 
             res.status(200).json({
@@ -358,6 +393,12 @@ export class OrderController {
             await uow.start();
 
             const { id } = req.params;
+            const existingOrder = await this.orderService.getOrderById(uow, id);
+            if (!this.canAccessOrder(existingOrder, req.user)) {
+                await uow.rollback();
+                res.status(403).json({ success: false, message: "Access denied" });
+                return;
+            }
             const deleted = await this.orderService.deleteOrder(uow, id);
             await uow.commit();
 

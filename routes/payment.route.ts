@@ -6,8 +6,8 @@ import { ROLE } from "../enums/role.enum";
 import paymentController from "../controllers/payment.controller";
 
 const paymentRouter = Router();
-paymentRouter.post("/create", paymentController.createPayment);
-paymentRouter.get("/:id/status",paymentController.status);
+paymentRouter.post("/create", authMiddleware, paymentController.createPayment);
+paymentRouter.get("/:id/status", authMiddleware, paymentController.status);
 
 
 

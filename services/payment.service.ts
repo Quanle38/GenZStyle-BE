@@ -15,9 +15,29 @@ export class PaymentService {
         uow: UnitOfWork,
         body: CreatePaymentPayload
     ): Promise<any> {
+        if (!body.orderId || !body.amount || body.amount <= 0) {
+            throw { status: 400, message: "orderId and amount are required (amount > 0)" };
+        }
+
+        // Kiểm tra đơn hàng tồn tại
+        const order = await uow.order.findById(body.orderId);
+        if (!order) {
+            throw { status: 404, message: "Order not found" };
+        }
+
+        // Chống tạo nhiều payment cho 1 order (ràng buộc 1:1)
+        const existingPayment = await uow.payment.findByOrderId(order.id);
+        if (existingPayment) {
+            throw { status: 400, message: "This order already has a payment" };
+        }
+
+        // Kiểm tra số tiền khớp với tổng giá trị đơn hàng
+        if (Number(body.amount) < Number(order.total_price)) {
+            throw { status: 400, message: `Amount must be at least ${order.total_price}` };
+        }
+
         const bank = process.env.BANK;
         const account = process.env.ACCOUNT;
-        console.log("checkPM")
         const create = await uow.payment.createPayment({ amount: body.amount, type: "in", order_id: body.orderId, content: body.description });
         const id = generateIdByFormat("OD", 6, create.id);
         const linkQR = `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${body.amount}&des=${id}&template=compact&download=false`

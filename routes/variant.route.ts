@@ -6,11 +6,9 @@ import variantController from "../controllers/variant.controller";
 const variantRouter = Router();
 variantRouter.get("/", variantController.getAll);
 variantRouter.get("/:id", variantController.getById);
-variantRouter.post("/create", variantController.create);
-variantRouter.post("/autoCreate", variantController.autoImportVariant);
-// variantRouter.patch("/update/:id", [authMiddleware, checkRole([ROLE.ADMIN])],variantController.update);
-variantRouter.patch("/update/:id",variantController.update);
-//variantRouter.delete("/delete/:id", [authMiddleware, checkRole([ROLE.ADMIN])],variantController.deleteOne);
-variantRouter.delete("/delete/:id",variantController.deleteOne);
+variantRouter.post("/create", [authMiddleware, checkRole([ROLE.ADMIN])], variantController.create);
+variantRouter.post("/autoCreate", [authMiddleware, checkRole([ROLE.ADMIN])], variantController.autoImportVariant);
+variantRouter.patch("/update/:id", [authMiddleware, checkRole([ROLE.ADMIN])], variantController.update);
+variantRouter.delete("/delete/:id", [authMiddleware, checkRole([ROLE.ADMIN])], variantController.deleteOne);
 
 export default variantRouter;
